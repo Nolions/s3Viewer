@@ -1,5 +1,13 @@
 package aws
 
+import (
+	"context"
+	awsConf "github.com/Nolions/s3Viewer/config"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+)
+
 var Regions = []string{
 	"us-east-1",      // 美東 (北維吉尼亞)
 	"us-east-2",      // 美東 (俄亥俄州)
@@ -21,4 +29,19 @@ var Regions = []string{
 	"af-south-1",     // 非洲 (開普敦)
 	"cn-north-1",     // 中國 (北京)
 	"cn-northwest-1", // 中國 (寧夏)
+}
+
+func newConfig(conf awsConf.AWSConfig) (*aws.Config, error) {
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(conf.Region),
+		config.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(conf.AccessKey, conf.SecretKey, ""),
+		),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
 }

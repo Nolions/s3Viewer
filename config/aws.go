@@ -1,7 +1,7 @@
 package config
 
 type AWSConfig struct {
-	Region    int
+	Region    string
 	AccessKey string
 	SecretKey string
 	Bucket    string
