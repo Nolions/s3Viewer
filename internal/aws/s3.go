@@ -2,10 +2,13 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	awsConf "github.com/Nolions/s3Viewer/config"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"io"
+	"os"
 	"strings"
 	"time"
 )
@@ -116,4 +119,38 @@ func collectObjects(files *[]ObjectInfo, contents []types.Object, prefix string)
 
 		*files = append(*files, f)
 	}
+}
+
+// DownloadFile
+// 下載單一檔案到本機目錄中
+func (c *S3Client) DownloadFile(key, destPath string) error {
+	// 檢查預計儲存目錄是否存在
+	dir := destPath[:strings.LastIndex(destPath, string(os.PathSeparator))]
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return err
+	}
+
+	// 建立檔案
+	f, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("creating file %s: %w", destPath, err)
+	}
+	defer f.Close()
+
+	// 下載檔案
+	resp, err := c.client.GetObject(c.ctx, &s3.GetObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	_, err = io.Copy(f, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
