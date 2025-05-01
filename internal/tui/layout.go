@@ -25,9 +25,9 @@ func NewS3App(conf *config.AWSConfig) *S3App {
 	}
 }
 
-func (s *S3App) BuildUI() {
-	credentialsPage := s.CredentialsLayout() // credentials 頁面
-	managerPage := s.ManagerLayout()         // manager 頁面
+func (appCTX *S3App) BuildUI() {
+	credentialsPage := appCTX.CredentialsLayout() // credentials 頁面
+	managerPage := appCTX.ManagerLayout()         // manager 頁面
 
 	filePicker := FilePickerLayout(FilePickerOption{
 		StartDir:          ".",
@@ -35,27 +35,27 @@ func (s *S3App) BuildUI() {
 		ExtensionFilter:   []string{},
 		OnSelect: func(path string) {
 			fmt.Println("你選擇了：", path)
-			s.Pages.HidePage("filepicker")
+			appCTX.Pages.HidePage("filepicker")
 		},
 	})
 	filePicker.SetBorder(true).SetTitle("Select a file")
 
 	modal := FilePickerModal(filePicker, 60, 15, func() {
-		s.Pages.HidePage("filepicker")
+		appCTX.Pages.HidePage("filepicker")
 	})
 
-	s.Pages.AddPage("credentials", credentialsPage, true, true)
-	s.Pages.AddPage("manager", managerPage, true, false)
-	s.Pages.AddPage("filepicker", modal, true, false)
+	appCTX.Pages.AddPage("credentials", credentialsPage, true, true)
+	appCTX.Pages.AddPage("manager", managerPage, true, false)
+	appCTX.Pages.AddPage("filepicker", modal, true, false)
 
 	focusMap := map[string]tview.Primitive{
 		"credentials": credentialsPage.GetItem(1).(tview.Primitive),
 		"manager":     managerPage.GetItem(1).(*tview.Flex),
 	}
 
-	setFocusOnPage(s.App, "credentials", focusMap)
+	setFocusOnPage(appCTX.App, "credentials", focusMap)
 
-	if err := s.App.SetRoot(s.Pages, true).Run(); err != nil {
+	if err := appCTX.App.SetRoot(appCTX.Pages, true).Run(); err != nil {
 		panic(err)
 	}
 }

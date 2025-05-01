@@ -2,9 +2,12 @@ package aws
 
 import (
 	"context"
-	"fmt"
 	awsConf "github.com/Nolions/s3Viewer/config"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"strings"
+	"time"
 )
 
 type S3Client struct {
@@ -13,6 +16,8 @@ type S3Client struct {
 	bucket string
 }
 
+// NewS3Client
+// 新增S3 Client
 func NewS3Client(ctx context.Context, conf awsConf.AWSConfig) (*S3Client, error) {
 	cfg, err := newConfig(conf)
 	if err != nil {
@@ -26,13 +31,89 @@ func NewS3Client(ctx context.Context, conf awsConf.AWSConfig) (*S3Client, error)
 	}, nil
 }
 
-func (c S3Client) CheckHeadBucket() error {
+type PrefixCont struct {
+	Folders []string
+	Objects []ObjectInfo
+}
+
+type ObjectInfo struct {
+	Name string
+	Key  string
+	Time time.Time
+	Size int64
+}
+
+// CheckHeadBucket
+// 檢查Bucket是否可以存取
+func (c *S3Client) CheckHeadBucket() error {
 	_, err := c.client.HeadBucket(c.ctx, &s3.HeadBucketInput{
 		Bucket: &c.bucket,
 	})
 	if err != nil {
-		fmt.Println(err.Error())
 		return err
 	}
 	return nil
+}
+
+// ListPrefix
+// 列出指定目錄下的檔案與目錄
+func (c *S3Client) ListPrefix(prefix string) (PrefixCont, error) {
+	if prefix != "" && !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	var token *string
+	objs := PrefixCont{}
+	for {
+		out, err := c.client.ListObjectsV2(c.ctx, &s3.ListObjectsV2Input{
+			Bucket:            aws.String(c.bucket),
+			Prefix:            aws.String(prefix),
+			Delimiter:         aws.String("/"),
+			ContinuationToken: token,
+			MaxKeys:           aws.Int32(1000),
+		})
+		if err != nil {
+			return PrefixCont{}, err
+		}
+
+		collectFolders(&objs.Folders, out.CommonPrefixes, prefix)
+		collectObjects(&objs.Objects, out.Contents, prefix)
+
+		if out.IsTruncated == nil || !*out.IsTruncated {
+			break
+		}
+		token = out.NextContinuationToken
+	}
+
+	return objs, nil
+}
+
+func collectFolders(dirs *[]string, commonPrefixes []types.CommonPrefix, prefix string) {
+	for _, cp := range commonPrefixes {
+		name := strings.TrimSuffix(strings.TrimPrefix(aws.ToString(cp.Prefix), prefix), "/")
+		*dirs = append(*dirs, name)
+	}
+}
+
+func collectObjects(files *[]ObjectInfo, contents []types.Object, prefix string) {
+	for _, obj := range contents {
+		key := aws.ToString(obj.Key)
+		name := strings.TrimPrefix(key, prefix)
+		if name == "" {
+			continue
+		}
+
+		if obj.Size == nil {
+			continue
+		}
+
+		f := ObjectInfo{
+			Key:  key,
+			Name: name,
+			Size: *obj.Size,
+			Time: aws.ToTime(obj.LastModified).Local(),
+		}
+
+		*files = append(*files, f)
+	}
 }

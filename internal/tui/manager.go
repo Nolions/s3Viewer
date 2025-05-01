@@ -6,11 +6,11 @@ import (
 	"github.com/rivo/tview"
 )
 
-func (appCtx *S3App) ManagerLayout() *tview.Flex {
-	bucketLayout := appCtx.BucketNameLayout()
-	btnLayout := appCtx.ButtonsLayout()
-	consoleLayout := appCtx.ConsoleLayout()
-	browserLayout := appCtx.BrowserLayout(consoleLayout)
+func (appCTX *S3App) ManagerLayout() *tview.Flex {
+	bucketLayout := appCTX.BucketNameLayout()
+	btnLayout := appCTX.ButtonsLayout()
+	consoleLayout := appCTX.ConsoleLayout()
+	browserLayout := appCTX.BrowserLayout(consoleLayout)
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
 		AddItem(bucketLayout, 1, 0, false).
@@ -28,7 +28,7 @@ func (appCtx *S3App) ManagerLayout() *tview.Flex {
 		switch event.Key() {
 		case tcell.KeyTAB:
 			currentFocus = (currentFocus + 1) % len(focusables)
-			appCtx.App.SetFocus(focusables[currentFocus])
+			appCTX.App.SetFocus(focusables[currentFocus])
 			return nil
 		}
 		return event
@@ -37,9 +37,9 @@ func (appCtx *S3App) ManagerLayout() *tview.Flex {
 	return layout
 }
 
-func (appCtx *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
-	prefixTreeView := appCtx.PrefixTreeLayout()
-	fileListView := appCtx.FileListLayout()
+func (appCTX *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
+	prefixTreeView := appCTX.PrefixTreeLayout()
+	fileListView := appCTX.FileListLayout()
 
 	prefixTreeView.SetSelectedFunc(func(node *tview.TreeNode) {
 		ref := node.GetReference()
@@ -64,11 +64,11 @@ func (appCtx *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
 		switch event.Key() {
 		case tcell.KeyLeft:
 			currentFocus = 0
-			appCtx.App.SetFocus(focusables[currentFocus])
+			appCTX.App.SetFocus(focusables[currentFocus])
 			return nil
 		case tcell.KeyRight:
 			currentFocus = 1
-			appCtx.App.SetFocus(focusables[currentFocus])
+			appCTX.App.SetFocus(focusables[currentFocus])
 			return nil
 		}
 		return event
@@ -77,11 +77,11 @@ func (appCtx *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
 	return flex
 }
 
-func (appCtx *S3App) BucketNameLayout() *tview.TextView {
+func (appCTX *S3App) BucketNameLayout() *tview.TextView {
 	return tview.NewTextView().SetText("Bucket: ")
 }
 
-func (appCtx *S3App) ConsoleLayout() *tview.TextView {
+func (appCTX *S3App) ConsoleLayout() *tview.TextView {
 	console := tview.NewTextView().
 		SetText("console...").
 		SetDynamicColors(true).
@@ -92,10 +92,10 @@ func (appCtx *S3App) ConsoleLayout() *tview.TextView {
 	return console
 }
 
-func (appCtx *S3App) ButtonsLayout() *tview.Flex {
+func (appCTX *S3App) ButtonsLayout() *tview.Flex {
 	inputField := tview.NewInputField().SetLabel("Upload Path: ").SetFieldWidth(55)
 	selectBtn := tview.NewButton("Select").SetSelectedFunc(func() {
-		appCtx.Pages.ShowPage("filepicker")
+		appCTX.Pages.ShowPage("filepicker")
 		//app.SetFocus(filePicker) // 可選
 	})
 	uploadBtn := tview.NewButton("Upload").SetSelectedFunc(func() {
@@ -105,7 +105,7 @@ func (appCtx *S3App) ButtonsLayout() *tview.Flex {
 	deleteBtn := tview.NewButton("Delete").SetSelectedFunc(func() {
 	})
 	exitBtn := tview.NewButton("Exit").SetSelectedFunc(func() {
-		appCtx.Pages.SwitchToPage("credentials")
+		appCTX.Pages.SwitchToPage("credentials")
 	})
 
 	layout := tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -135,11 +135,11 @@ func (appCtx *S3App) ButtonsLayout() *tview.Flex {
 		switch event.Key() {
 		case tcell.KeyLeft:
 			currentFocus = (currentFocus - 1 + len(focusables)) % len(focusables)
-			appCtx.App.SetFocus(focusables[currentFocus])
+			appCTX.App.SetFocus(focusables[currentFocus])
 			return nil
 		case tcell.KeyRight:
 			currentFocus = (currentFocus + 1) % len(focusables)
-			appCtx.App.SetFocus(focusables[currentFocus])
+			appCTX.App.SetFocus(focusables[currentFocus])
 			return nil
 		}
 		return event
@@ -148,7 +148,7 @@ func (appCtx *S3App) ButtonsLayout() *tview.Flex {
 	return layout
 }
 
-func (appCtx *S3App) PrefixTreeLayout() *tview.TreeView {
+func (appCTX *S3App) PrefixTreeLayout() *tview.TreeView {
 	root := tview.NewTreeNode("Prefixes").SetColor(tcell.ColorGreen)
 	for i := 1; i <= 5; i++ {
 		prefix := fmt.Sprintf("Prefix_%d", i)
@@ -162,13 +162,13 @@ func (appCtx *S3App) PrefixTreeLayout() *tview.TreeView {
 	return tree
 }
 
-func (appCtx *S3App) FileListLayout() *tview.List {
+func (appCTX *S3App) FileListLayout() *tview.List {
 	list := tview.NewList().
 		AddItem("File_1", "", 0, nil).
 		AddItem("File_2", "", 0, nil).
 		AddItem("File_3", "", 0, nil)
 
-	list.SetBorder(true).SetTitle("Files")
+	list.SetBorder(true).SetTitle("Objects")
 
 	return list
 }
