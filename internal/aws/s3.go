@@ -154,3 +154,29 @@ func (c *S3Client) DownloadFile(key, destPath string) error {
 
 	return nil
 }
+
+// UploadFile
+// 上傳檔案到s3
+func (c *S3Client) UploadFile(filePath, key string) error {
+	if strings.HasPrefix(key, "/") {
+		key = strings.TrimPrefix(key, "/")
+	}
+
+	// 檢查檔案是否存在
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = c.client.PutObject(c.ctx, &s3.PutObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+		Body:   file,
+	})
+	if err != nil {
+		return err
+	}
+	
+	return nil
+}
