@@ -14,13 +14,27 @@ func (appCTX *S3App) CredentialsLayout() *tview.Flex {
 
 func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Application)) *tview.Form {
 	form := tview.NewForm()
-	form.AddDropDown("Region", aws.Regions, 1, nil).
-		AddInputField("AccessKey", appCTX.AwsConf.AccessKey, 35, nil, nil).
-		AddInputField("SecretKey", appCTX.AwsConf.SecretKey, 35, nil, nil).
-		AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, nil).
-		AddCheckbox("Acl", appCTX.AwsConf.Acl, nil).
+	form.AddDropDown("Region", aws.Regions, 1, func(text string, idx int) { appCTX.AwsConf.Region = aws.Regions[idx] }).
+		AddInputField("AccessKey", appCTX.AwsConf.AccessKey, 35, nil, func(text string) { appCTX.AwsConf.AccessKey = text }).
+		AddInputField("SecretKey", appCTX.AwsConf.SecretKey, 35, nil, func(text string) { appCTX.AwsConf.SecretKey = text }).
+		AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) { appCTX.AwsConf.Bucket = text }).
+		AddCheckbox("Acl", appCTX.AwsConf.Acl, func(checked bool) { appCTX.AwsConf.Acl = checked }).
 		AddButton("Save", func() {
-			appCTX.Pages.SwitchToPage(switchTo)
+			s3c, err := aws.NewS3Client(appCTX.Ctx, *appCTX.AwsConf)
+			appCTX.S3Client = s3c
+			if err != nil {
+				// TODO
+			}
+
+			err = s3c.CheckHeadBucket()
+			if err != nil {
+				// TODO
+			} else {
+				newManager := appCTX.ManagerLayout()
+				appCTX.Pages.AddPage("manager", newManager, true, false)
+				appCTX.Pages.SwitchToPage(switchTo)
+			}
+
 		}).
 		AddButton("Reset", func() {
 			appCTX.AwsConf.AccessKey = ""

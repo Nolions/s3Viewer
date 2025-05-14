@@ -1,24 +1,29 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"github.com/Nolions/s3Viewer/config"
+	"github.com/Nolions/s3Viewer/internal/aws"
 	"github.com/rivo/tview"
 )
 
 type S3App struct {
-	App     *tview.Application
-	Pages   *tview.Pages
-	AwsConf *config.AWSConfig
+	Ctx      context.Context
+	App      *tview.Application
+	Pages    *tview.Pages
+	AwsConf  *config.AWSConfig
+	S3Client *aws.S3Client
 }
 
-func NewS3App(conf *config.AWSConfig) *S3App {
+func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
 	app := tview.NewApplication()
 	app.EnableMouse(true)
 
 	pages := tview.NewPages()
 
 	return &S3App{
+		Ctx:     ctx,
 		App:     app,
 		Pages:   pages,
 		AwsConf: conf,
@@ -27,7 +32,6 @@ func NewS3App(conf *config.AWSConfig) *S3App {
 
 func (appCTX *S3App) BuildUI() {
 	credentialsPage := appCTX.CredentialsLayout() // credentials 頁面
-	managerPage := appCTX.ManagerLayout()         // manager 頁面
 
 	filePicker := FilePickerLayout(FilePickerOption{
 		StartDir:          ".",
@@ -45,16 +49,8 @@ func (appCTX *S3App) BuildUI() {
 	})
 
 	appCTX.Pages.AddPage("credentials", credentialsPage, true, true)
-	appCTX.Pages.AddPage("manager", managerPage, true, false)
 	appCTX.Pages.AddPage("filepicker", modal, true, false)
-
-	focusMap := map[string]tview.Primitive{
-		"credentials": credentialsPage.GetItem(1).(tview.Primitive),
-		"manager":     managerPage.GetItem(1).(*tview.Flex),
-	}
-
-	setFocusOnPage(appCTX.App, "credentials", focusMap)
-
+	
 	if err := appCTX.App.SetRoot(appCTX.Pages, true).Run(); err != nil {
 		panic(err)
 	}

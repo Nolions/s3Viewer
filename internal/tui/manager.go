@@ -7,13 +7,13 @@ import (
 )
 
 func (appCTX *S3App) ManagerLayout() *tview.Flex {
-	bucketLayout := appCTX.BucketNameLayout()
 	btnLayout := appCTX.ButtonsLayout()
 	consoleLayout := appCTX.ConsoleLayout()
+	topLayout := appCTX.TopLayout()
 	browserLayout := appCTX.BrowserLayout(consoleLayout)
 
 	layout := tview.NewFlex().SetDirection(tview.FlexRow).
-		AddItem(bucketLayout, 1, 0, false).
+		AddItem(topLayout, 1, 0, false).
 		AddItem(browserLayout, 0, 5, true).
 		AddItem(btnLayout, 3, 0, false).
 		AddItem(consoleLayout, 5, 0, false)
@@ -35,6 +35,18 @@ func (appCTX *S3App) ManagerLayout() *tview.Flex {
 	})
 
 	return layout
+}
+
+func (appCTX *S3App) TopLayout() *tview.Flex {
+
+	regionLayout := appCTX.LabelLayout("Region", appCTX.AwsConf.Region)
+	bucketLayout := appCTX.LabelLayout("Bucket", appCTX.AwsConf.Bucket)
+
+	flex := tview.NewFlex().
+		AddItem(regionLayout, 0, 1, true).
+		AddItem(bucketLayout, 0, 2, false)
+
+	return flex
 }
 
 func (appCTX *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
@@ -77,8 +89,8 @@ func (appCTX *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
 	return flex
 }
 
-func (appCTX *S3App) BucketNameLayout() *tview.TextView {
-	return tview.NewTextView().SetText("Bucket: ")
+func (appCTX *S3App) LabelLayout(label, cont string) *tview.TextView {
+	return tview.NewTextView().SetText(label + ": " + cont)
 }
 
 func (appCTX *S3App) ConsoleLayout() *tview.TextView {

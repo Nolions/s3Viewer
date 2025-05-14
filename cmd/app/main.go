@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"github.com/Nolions/s3Viewer/config"
 	"github.com/Nolions/s3Viewer/internal/tui"
 )
 
 func main() {
 	conf := config.NewAWSConfig()
-
-	s := tui.NewS3App(conf)
+	ctx := context.Background()
+	s := tui.NewS3App(ctx, conf)
 	s.BuildUI()
 
 	if err := s.App.Run(); err != nil {

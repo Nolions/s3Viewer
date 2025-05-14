@@ -177,6 +177,6 @@ func (c *S3Client) UploadFile(filePath, key string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }
