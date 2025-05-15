@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"path"
 )
 
 func (appCTX *S3App) ManagerLayout() *tview.Flex {
@@ -38,7 +39,6 @@ func (appCTX *S3App) ManagerLayout() *tview.Flex {
 }
 
 func (appCTX *S3App) TopLayout() *tview.Flex {
-
 	regionLayout := appCTX.LabelLayout("Region", appCTX.AwsConf.Region)
 	bucketLayout := appCTX.LabelLayout("Bucket", appCTX.AwsConf.Bucket)
 
@@ -53,17 +53,8 @@ func (appCTX *S3App) BrowserLayout(console *tview.TextView) *tview.Flex {
 	prefixTreeView := appCTX.PrefixTreeLayout()
 	fileListView := appCTX.FileListLayout()
 
-	prefixTreeView.SetSelectedFunc(func(node *tview.TreeNode) {
-		ref := node.GetReference()
-		if ref != nil {
-			prefix := ref.(string)
-			fileListView.Clear().
-				AddItem(fmt.Sprintf("%s_File_1", prefix), "", 0, nil).
-				AddItem(fmt.Sprintf("%s_File_2", prefix), "", 0, nil).
-				AddItem(fmt.Sprintf("%s_File_3", prefix), "", 0, nil)
-			console.SetText(fmt.Sprintf("Selected Prefix: %s", prefix))
-		}
-	})
+	// Asynchronously load root prefixes and files
+	go appCTX.loadPrefixes(console, prefixTreeView, fileListView)
 
 	flex := tview.NewFlex().
 		AddItem(prefixTreeView, 0, 1, true).
@@ -161,26 +152,92 @@ func (appCTX *S3App) ButtonsLayout() *tview.Flex {
 }
 
 func (appCTX *S3App) PrefixTreeLayout() *tview.TreeView {
-	root := tview.NewTreeNode("Prefixes").SetColor(tcell.ColorGreen)
-	for i := 1; i <= 5; i++ {
-		prefix := fmt.Sprintf("Prefix_%d", i)
-		node := tview.NewTreeNode(prefix).SetReference(prefix)
-		root.AddChild(node)
-	}
+	placeholder := tview.NewTreeNode("Loading...").
+		SetReference("").
+		SetColor(tcell.ColorGray)
 
-	tree := tview.NewTreeView().SetRoot(root).SetCurrentNode(root)
+	tree := tview.NewTreeView().SetRoot(placeholder).SetCurrentNode(placeholder)
 	tree.SetBorder(true).SetTitle("Prefixes")
 
 	return tree
 }
 
 func (appCTX *S3App) FileListLayout() *tview.List {
-	list := tview.NewList().
-		AddItem("File_1", "", 0, nil).
-		AddItem("File_2", "", 0, nil).
-		AddItem("File_3", "", 0, nil)
-
-	list.SetBorder(true).SetTitle("Objects")
+	list := tview.NewList()
+	list.SetBorder(true).SetTitle("Files")
 
 	return list
+}
+
+func (appCTX *S3App) loadPrefixes(console *tview.TextView, prefixTreeView *tview.TreeView, fileListView *tview.List) {
+	res, err := appCTX.S3Client.ListPrefix("")
+	if err != nil {
+		appCTX.App.QueueUpdateDraw(func() {
+			console.SetText(fmt.Sprintf("[red]ListPrefix error:[-] %v", err))
+		})
+		return
+	}
+
+	appCTX.App.QueueUpdateDraw(func() {
+		// Build tree root
+		root := tview.NewTreeNode(appCTX.AwsConf.Bucket).SetColor(tcell.ColorGreen).SetReference("")
+		// Add top-level directories
+		for _, dir := range res.Dirs {
+			if dir == "" {
+				continue
+			}
+			child := tview.NewTreeNode(dir).SetReference(dir + "/")
+			root.AddChild(child)
+		}
+		prefixTreeView.SetRoot(root).SetCurrentNode(root)
+
+		// Populate file list
+		fileListView.Clear()
+		for _, f := range res.Files {
+			fileListView.AddItem(f.Name, "", 0, nil)
+		}
+		console.SetText(fmt.Sprintf("Loaded %d dirs, %d files", len(res.Dirs), len(res.Files)))
+
+		// Drill down: when a prefix is selected, list sub dirs and files
+		prefixTreeView.SetSelectedFunc(func(node *tview.TreeNode) {
+			ref := node.GetReference()
+			if ref == nil {
+				return
+			}
+			prefix := ref.(string)
+			go appCTX.loadSubDirs(prefix, node, fileListView, console)
+		})
+	})
+}
+
+func (appCTX *S3App) loadSubDirs(
+	prefix string,
+	node *tview.TreeNode,
+	fileListView *tview.List,
+	console *tview.TextView,
+) {
+	res, err := appCTX.S3Client.ListPrefix(prefix)
+	appCTX.App.QueueUpdateDraw(func() {
+		if err != nil {
+			console.SetText(fmt.Sprintf("[red]ListPrefix error:[-] %v", err))
+			return
+		}
+		node.ClearChildren()
+		for _, d := range res.Dirs {
+			if d == "" {
+				continue
+			}
+			childPrefix := path.Join(prefix, d) + "/"
+			child := tview.NewTreeNode(d).
+				SetReference(childPrefix)
+			node.AddChild(child)
+		}
+		node.SetExpanded(true)
+
+		fileListView.Clear()
+		for _, f := range res.Files {
+			fileListView.AddItem(f.Name, "", 0, nil)
+		}
+		console.SetText(fmt.Sprintf("Under '%s': %d dirs, %d files", prefix, len(res.Dirs), len(res.Files)))
+	})
 }

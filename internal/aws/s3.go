@@ -35,8 +35,8 @@ func NewS3Client(ctx context.Context, conf awsConf.AWSConfig) (*S3Client, error)
 }
 
 type PrefixCont struct {
-	Folders []string
-	Objects []ObjectInfo
+	Dirs  []string
+	Files []ObjectInfo
 }
 
 type ObjectInfo struct {
@@ -79,8 +79,8 @@ func (c *S3Client) ListPrefix(prefix string) (PrefixCont, error) {
 			return PrefixCont{}, err
 		}
 
-		collectFolders(&objs.Folders, out.CommonPrefixes, prefix)
-		collectObjects(&objs.Objects, out.Contents, prefix)
+		collectFolders(&objs.Dirs, out.CommonPrefixes, prefix)
+		collectObjects(&objs.Files, out.Contents, prefix)
 
 		if out.IsTruncated == nil || !*out.IsTruncated {
 			break
