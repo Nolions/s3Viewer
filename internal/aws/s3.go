@@ -36,14 +36,22 @@ func NewS3Client(ctx context.Context, conf awsConf.AWSConfig) (*S3Client, error)
 
 type PrefixCont struct {
 	Dirs  []string
-	Files []ObjectInfo
+	Files []FileInfo
 }
 
-type ObjectInfo struct {
+type FileInfo struct {
 	Name string
 	Key  string
 	Time time.Time
 	Size int64
+}
+
+type FileDetail struct {
+	AcceptRanges  string
+	UpdateTime    time.Time
+	ContentLength int64
+	ContentType   string
+	Encryption    string
 }
 
 // CheckHeadBucket
@@ -98,7 +106,7 @@ func collectFolders(dirs *[]string, commonPrefixes []types.CommonPrefix, prefix 
 	}
 }
 
-func collectObjects(files *[]ObjectInfo, contents []types.Object, prefix string) {
+func collectObjects(files *[]FileInfo, contents []types.Object, prefix string) {
 	for _, obj := range contents {
 		key := aws.ToString(obj.Key)
 		name := strings.TrimPrefix(key, prefix)
@@ -110,7 +118,7 @@ func collectObjects(files *[]ObjectInfo, contents []types.Object, prefix string)
 			continue
 		}
 
-		f := ObjectInfo{
+		f := FileInfo{
 			Key:  key,
 			Name: name,
 			Size: *obj.Size,
@@ -179,4 +187,27 @@ func (c *S3Client) UploadFile(filePath, key string) error {
 	}
 
 	return nil
+}
+
+// GetDetail
+// 取得檔案的詳細資訊
+func (c *S3Client) GetDetail(key string) (FileDetail, error) {
+	input := &s3.HeadObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	}
+
+	o, err := c.client.HeadObject(c.ctx, input)
+	if err != nil {
+		return FileDetail{}, err
+	}
+	
+	return FileDetail{
+		AcceptRanges:  aws.ToString(o.AcceptRanges),
+		UpdateTime:    aws.ToTime(o.LastModified),
+		ContentLength: aws.ToInt64(o.ContentLength),
+		ContentType:   aws.ToString(o.ContentType),
+		Encryption:    string(o.ServerSideEncryption),
+	}, nil
+
 }

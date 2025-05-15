@@ -21,10 +21,10 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 		AddCheckbox("Acl", appCTX.AwsConf.Acl, func(checked bool) { appCTX.AwsConf.Acl = checked }).
 		AddButton("Save", func() {
 			s3c, err := aws.NewS3Client(appCTX.Ctx, *appCTX.AwsConf)
-			appCTX.S3Client = s3c
 			if err != nil {
 				// TODO
 			}
+			appCTX.S3Client = s3c
 
 			err = s3c.CheckHeadBucket()
 			if err != nil {
