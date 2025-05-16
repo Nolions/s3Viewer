@@ -14,12 +14,12 @@ func (appCTX *S3App) CredentialsLayout() *tview.Flex {
 
 func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Application)) *tview.Form {
 	form := tview.NewForm()
-	form.AddDropDown("Region", aws.Regions, 1, func(text string, idx int) { appCTX.AwsConf.Region = aws.Regions[idx] }).
-		AddInputField("AccessKey", appCTX.AwsConf.AccessKey, 35, nil, func(text string) { appCTX.AwsConf.AccessKey = text }).
-		AddInputField("SecretKey", appCTX.AwsConf.SecretKey, 35, nil, func(text string) { appCTX.AwsConf.SecretKey = text }).
+	form.AddDropDown("Region", aws.Regions, 15, func(text string, idx int) { appCTX.AwsConf.Region = aws.Regions[idx] }).
+		AddPasswordField("AccessKey", appCTX.AwsConf.AccessKey, 35, '*', func(text string) { appCTX.AwsConf.AccessKey = text }).
+		AddPasswordField("SecretKey", appCTX.AwsConf.SecretKey, 35, '*', func(text string) { appCTX.AwsConf.SecretKey = text }).
 		AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) { appCTX.AwsConf.Bucket = text }).
 		AddCheckbox("Acl", appCTX.AwsConf.Acl, func(checked bool) { appCTX.AwsConf.Acl = checked }).
-		AddButton("Save", func() {
+		AddButton("Go", func() {
 			s3c, err := aws.NewS3Client(appCTX.Ctx, *appCTX.AwsConf)
 			if err != nil {
 				// TODO
