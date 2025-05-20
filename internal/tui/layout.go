@@ -16,6 +16,13 @@ type S3App struct {
 	S3Client *aws.S3Client
 }
 
+var (
+	filePicker      *tview.TreeView
+	filePickerModal tview.Primitive
+	credentialsPage *tview.Flex
+	managerPage     *tview.Flex
+)
+
 func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
 	app := tview.NewApplication()
 	app.EnableMouse(true)
@@ -31,9 +38,9 @@ func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
 }
 
 func (appCTX *S3App) BuildUI() {
-	credentialsPage := appCTX.CredentialsLayout() // credentials 頁面
+	credentialsPage = appCTX.CredentialsLayout() // credentials 頁面
 
-	filePicker := FilePickerLayout(FilePickerOption{
+	filePicker = FilePickerLayout(FilePickerOption{
 		StartDir:          ".",
 		AllowFolderSelect: false,
 		ExtensionFilter:   []string{},
@@ -44,13 +51,13 @@ func (appCTX *S3App) BuildUI() {
 	})
 	filePicker.SetBorder(true).SetTitle("Select a file")
 
-	modal := FilePickerModal(filePicker, 60, 15, func() {
+	filePickerModal = FilePickerModal(filePicker, 60, 15, func() {
 		appCTX.Pages.HidePage("filepicker")
 	})
 
 	appCTX.Pages.AddPage("credentials", credentialsPage, true, true)
-	appCTX.Pages.AddPage("filepicker", modal, true, false)
-	
+	appCTX.Pages.AddPage("filepicker", filePickerModal, true, false)
+
 	if err := appCTX.App.SetRoot(appCTX.Pages, true).Run(); err != nil {
 		panic(err)
 	}

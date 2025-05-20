@@ -99,7 +99,8 @@ func (appCTX *S3App) ButtonsLayout() *tview.Flex {
 	inputField := tview.NewInputField().SetLabel("Upload Path: ").SetFieldWidth(55)
 	selectBtn := tview.NewButton("Select").SetSelectedFunc(func() {
 		appCTX.Pages.ShowPage("filepicker")
-		//app.SetFocus(filePicker) // 可選
+		appCTX.Pages.SendToFront("filepicker")
+		appCTX.App.SetFocus(filePicker) // 可選
 	})
 	uploadBtn := tview.NewButton("Upload").SetSelectedFunc(func() {
 	})

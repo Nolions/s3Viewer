@@ -30,9 +30,10 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 			if err != nil {
 				// TODO
 			} else {
-				newManager := appCTX.ManagerLayout()
-				appCTX.Pages.AddPage("manager", newManager, true, false)
+				managerPage = appCTX.ManagerLayout()
+				appCTX.Pages.AddPage("manager", managerPage, true, false)
 				appCTX.Pages.SwitchToPage(switchTo)
+				//appCTX.App.SetFocus(managerPage)
 			}
 
 		}).
