@@ -2,14 +2,18 @@ package tui
 
 import (
 	"fmt"
+	"github.com/Nolions/s3Viewer/internal/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"path"
 )
 
+var selectedFile aws.FileInfo
+
 func (appCTX *S3App) ManagerLayout() *tview.Flex {
-	btnLayout := appCTX.ButtonsLayout()
-	consoleLayout := appCTX.ConsoleLayout()
+	consoleLayout = appCTX.ConsoleLayout()
+	btnLayout := appCTX.ButtonsLayout(consoleLayout)
+
 	topLayout := appCTX.TopLayout()
 	browserLayout := appCTX.BrowserLayout(consoleLayout)
 
@@ -95,7 +99,7 @@ func (appCTX *S3App) ConsoleLayout() *tview.TextView {
 	return console
 }
 
-func (appCTX *S3App) ButtonsLayout() *tview.Flex {
+func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 	inputField := tview.NewInputField().SetLabel("Upload Path: ").SetFieldWidth(55)
 	selectBtn := tview.NewButton("Select").SetSelectedFunc(func() {
 		appCTX.Pages.ShowPage("filepicker")
@@ -105,9 +109,16 @@ func (appCTX *S3App) ButtonsLayout() *tview.Flex {
 	uploadBtn := tview.NewButton("Upload").SetSelectedFunc(func() {
 	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
+		if selectedFile.Key != "" && selectedFile.Name != "" {
+			appCTX.Pages.ShowPage("dirPicker")
+			appCTX.Pages.SendToFront("dirPicker")
+			appCTX.App.SetFocus(dirPicker) // 可選
+		} else {
+			console.SetText("no select file")
+		}
 	})
-	deleteBtn := tview.NewButton("Delete").SetSelectedFunc(func() {
-	})
+	//deleteBtn := tview.NewButton("Delete").SetSelectedFunc(func() {
+	//})
 	exitBtn := tview.NewButton("Exit").SetSelectedFunc(func() {
 		appCTX.Pages.SwitchToPage("credentials")
 	})
@@ -122,7 +133,7 @@ func (appCTX *S3App) ButtonsLayout() *tview.Flex {
 		AddItem(tview.NewBox(), 0, 1, false).
 		AddItem(downloadBtn, 12, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
-		AddItem(deleteBtn, 10, 0, false).
+		//AddItem(deleteBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(exitBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 2, 0, false)
@@ -131,7 +142,7 @@ func (appCTX *S3App) ButtonsLayout() *tview.Flex {
 
 	// Focus 切換處理
 	focusables := []tview.Primitive{
-		inputField, selectBtn, uploadBtn, downloadBtn, deleteBtn, exitBtn,
+		inputField, selectBtn, uploadBtn, downloadBtn, exitBtn,
 	}
 	currentFocus := 0
 
@@ -237,8 +248,15 @@ func (appCTX *S3App) loadSubDirs(
 
 		fileListView.Clear()
 		for _, f := range res.Files {
-			fileListView.AddItem(f.Name, "", 0, nil)
+			fileListView.AddItem(f.Name, "", 0, func() {
+				selectedFile = aws.FileInfo{
+					Name: f.Name,
+					Key:  f.Key,
+					Size: f.Size,
+					Time: f.Time,
+				}
+			})
 		}
-		console.SetText(fmt.Sprintf("Under '%s': %d dirs, %d files", prefix, len(res.Dirs), len(res.Files)))
+		//console.SetText(fmt.Sprintf("Under '%s': %d dirs, %d files", prefix, len(res.Dirs), len(res.Files)))
 	})
 }
