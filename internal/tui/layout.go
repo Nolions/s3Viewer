@@ -63,7 +63,7 @@ func (appCTX *S3App) BuildUI() {
 			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", selectedPath))
 			downloadPath := selectedPath + "\\" + selectedFile.Name
 			err := appCTX.S3Client.DownloadFile(selectedFile.Key, downloadPath)
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", downloadPath))
+			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", selectedPath))
 			if err != nil {
 				consoleLayout.SetText(fmt.Sprintf("download file: %s to %s fail, error:%s", selectedFile.Name, downloadPath, err.Error()))
 			} else {

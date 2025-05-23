@@ -100,13 +100,22 @@ func (appCTX *S3App) ConsoleLayout() *tview.TextView {
 }
 
 func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
-	inputField := tview.NewInputField().SetLabel("Upload Path: ").SetFieldWidth(55)
+	inputField := tview.NewInputField().SetLabel("S3 file Key: ").SetFieldWidth(55)
 	selectBtn := tview.NewButton("Select").SetSelectedFunc(func() {
 		appCTX.Pages.ShowPage("filepicker")
 		appCTX.Pages.SendToFront("filepicker")
 		appCTX.App.SetFocus(filePicker) // 可選
 	})
 	uploadBtn := tview.NewButton("Upload").SetSelectedFunc(func() {
+		s3Key := inputField.GetText()
+		consoleLayout.SetText(fmt.Sprintf("file: %s upload to s3 key: %s", selectedPath, s3Key))
+		err := appCTX.S3Client.UploadFile(selectedPath, s3Key)
+		if err != nil {
+			consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s fail, error:%s", selectedPath, inputField.GetText(), err.Error()))
+			return
+		}
+
+		consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s usccess", selectedPath, inputField.GetText()))
 	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
