@@ -9,11 +9,12 @@ import (
 )
 
 type S3App struct {
-	Ctx      context.Context
-	App      *tview.Application
-	Pages    *tview.Pages
-	AwsConf  *config.AWSConfig
-	S3Client *aws.S3Client
+	Ctx          context.Context
+	App          *tview.Application
+	Pages        *tview.Pages
+	AwsConf      *config.AWSConfig
+	S3Client     *aws.S3Client
+	selectedPath string
 }
 
 var (
@@ -42,56 +43,56 @@ func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
 func (appCTX *S3App) BuildUI() {
 	credentialsPage = appCTX.CredentialsLayout() // credentials 頁面
 
-	dirPicker = FilePickerLayout(FilePickerOption{
+	dirPicker = appCTX.FilePickerLayout(FilePickerOption{
 		StartDir:          ".",
 		AllowFolderSelect: false,
 		AllowShowFile:     false,
 		ExtensionFilter:   []string{},
 		OnSelect: func(path string) {
-			selectedPath = path
+			appCTX.selectedPath = path
 			//appCTX.Pages.HidePage("filepicker")
 		},
 	})
 	dirPicker.SetBorder(true).SetTitle("Select a dir")
 
-	dirPickerModal := FilePickerModal(dirPicker, 60, 15,
+	dirPickerModal := appCTX.FilePickerModal(dirPicker, 60, 15,
 		func() {
 			appCTX.Pages.HidePage("dirPicker")
-			selectedPath = ""
+			appCTX.selectedPath = ""
 		},
 		func() {
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", selectedPath))
-			downloadPath := selectedPath + "\\" + selectedFile.Name
+			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", appCTX.selectedPath))
+			downloadPath := appCTX.selectedPath + "\\" + selectedFile.Name
 			err := appCTX.S3Client.DownloadFile(selectedFile.Key, downloadPath)
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", selectedPath))
+			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", appCTX.selectedPath))
 			if err != nil {
 				consoleLayout.SetText(fmt.Sprintf("download file: %s to %s fail, error:%s", selectedFile.Name, downloadPath, err.Error()))
 			} else {
 				consoleLayout.SetText(fmt.Sprintf("download file: %s to %s, success, size:%d", selectedFile.Name, downloadPath, selectedFile.Size))
 			}
 			appCTX.Pages.HidePage("dirPicker")
-			selectedPath = ""
+			appCTX.selectedPath = ""
 		},
 	)
 
-	filePicker = FilePickerLayout(FilePickerOption{
+	filePicker = appCTX.FilePickerLayout(FilePickerOption{
 		StartDir:          ".",
 		AllowFolderSelect: false,
 		AllowShowFile:     true,
 		ExtensionFilter:   []string{},
 		OnSelect: func(path string) {
-			selectedPath = path
+			appCTX.selectedPath = path
 			//appCTX.Pages.HidePage("filepicker")
 		},
 	})
 	filePicker.SetBorder(true).SetTitle("Select a file")
 
-	filePickerModal := FilePickerModal(filePicker, 60, 15,
+	filePickerModal := appCTX.FilePickerModal(filePicker, 60, 15,
 		func() {
 			appCTX.Pages.HidePage("filepicker")
 		},
 		func() {
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", selectedPath))
+			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", appCTX.selectedPath))
 			appCTX.Pages.HidePage("filepicker")
 		},
 	)

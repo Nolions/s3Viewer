@@ -108,14 +108,14 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 	})
 	uploadBtn := tview.NewButton("Upload").SetSelectedFunc(func() {
 		s3Key := inputField.GetText()
-		consoleLayout.SetText(fmt.Sprintf("file: %s upload to s3 key: %s", selectedPath, s3Key))
-		err := appCTX.S3Client.UploadFile(selectedPath, s3Key)
+		consoleLayout.SetText(fmt.Sprintf("file: %s upload to s3 key: %s", appCTX.selectedPath, s3Key))
+		err := appCTX.S3Client.UploadFile(appCTX.selectedPath, s3Key)
 		if err != nil {
-			consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s fail, error:%s", selectedPath, inputField.GetText(), err.Error()))
+			consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s fail, error:%s", appCTX.selectedPath, inputField.GetText(), err.Error()))
 			return
 		}
 
-		consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s usccess", selectedPath, inputField.GetText()))
+		consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s usccess", appCTX.selectedPath, inputField.GetText()))
 	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {

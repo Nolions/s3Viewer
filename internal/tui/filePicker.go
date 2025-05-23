@@ -9,19 +9,18 @@ import (
 	"strings"
 )
 
-var selectedPath string
-
 // FilePickerModal 把 FilePicker 包成置中 Modal
-func FilePickerModal(picker *tview.TreeView, width, height int, closeFunc func(), confirmFunc func()) tview.Primitive {
-	confirmBtn := tview.NewButton("Confirm").SetSelectedFunc(func() {
-		if selectedPath != "" && confirmFunc != nil {
+func (appCTX *S3App) FilePickerModal(picker *tview.TreeView, width, height int, closeFunc func(), confirmFunc func()) tview.Primitive {
+	confirmBtn := tview.NewButton("OK").SetSelectedFunc(func() {
+		if appCTX.selectedPath != "" && confirmFunc != nil {
 			confirmFunc()
 		}
 	})
+	confirmBtn.SetBorder(true)
 
 	btnRow := tview.NewFlex().
 		AddItem(nil, 0, 1, false).
-		AddItem(confirmBtn, 10, 1, true).
+		AddItem(confirmBtn, 12, 0, true).
 		AddItem(nil, 0, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
@@ -32,7 +31,7 @@ func FilePickerModal(picker *tview.TreeView, width, height int, closeFunc func()
 				AddItem(picker, width, 0, true).
 				AddItem(nil, 0, 1, false),
 			height, 0, true).
-		AddItem(btnRow, 1, 0, false).
+		AddItem(btnRow, 3, 0, false).
 		AddItem(nil, 0, 1, false)
 
 	// 支援 Esc 關閉
@@ -58,7 +57,7 @@ type FilePickerOption struct {
 }
 
 // FilePickerLayout 回傳可配置選項的 FilePicker
-func FilePickerLayout(opt FilePickerOption) *tview.TreeView {
+func (appCTX *S3App) FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 	tree := tview.NewTreeView()
 	tree.SetBorder(true).SetTitle(" File Picker ")
 
@@ -73,21 +72,21 @@ func FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 	rootNode := tview.NewTreeNode(startDir).SetReference(startDir).SetExpanded(true)
 	tree.SetRoot(rootNode).SetCurrentNode(rootNode)
 
-	selectedPath = startDir
+	appCTX.selectedPath = startDir
 
 	tree.SetSelectedFunc(func(node *tview.TreeNode) {
 		ref := node.GetReference()
 		if ref != nil {
-			selectedPath = ref.(string)
+			appCTX.selectedPath = ref.(string)
 		}
 	})
 
-	refreshFileTree(tree, rootNode, startDir, opt)
+	appCTX.refreshFileTree(tree, rootNode, startDir, opt)
 
 	return tree
 }
 
-func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string, opt FilePickerOption) {
+func (appCTX *S3App) refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string, opt FilePickerOption) {
 	tree.SetTitle(" File Picker - " + dir)
 	rootNode.ClearChildren()
 	rootNode.SetReference(dir)
@@ -98,7 +97,7 @@ func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string,
 		SetReference(parent).
 		SetSelectable(true).
 		SetSelectedFunc(func() {
-			refreshFileTree(tree, rootNode, parent, opt)
+			appCTX.refreshFileTree(tree, rootNode, parent, opt)
 		})
 	rootNode.AddChild(upNode)
 
@@ -140,7 +139,7 @@ func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string,
 			childNode.SetColor(tcell.ColorGreen)
 			childNode.SetSelectedFunc(func(path string) func() {
 				return func() {
-					refreshFileTree(tree, rootNode, path, opt)
+					appCTX.refreshFileTree(tree, rootNode, path, opt)
 					tree.SetCurrentNode(childNode)
 					tree.SetTitle(" File Picker - " + path)
 				}

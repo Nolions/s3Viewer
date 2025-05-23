@@ -19,7 +19,7 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 		AddPasswordField("SecretKey", appCTX.AwsConf.SecretKey, 35, '*', func(text string) { appCTX.AwsConf.SecretKey = text }).
 		AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) { appCTX.AwsConf.Bucket = text }).
 		AddCheckbox("Acl", appCTX.AwsConf.Acl, func(checked bool) { appCTX.AwsConf.Acl = checked }).
-		AddButton("Go", func() {
+		AddButton("OK", func() {
 			s3c, err := aws.NewS3Client(appCTX.Ctx, *appCTX.AwsConf)
 			if err != nil {
 				// TODO
