@@ -3,7 +3,6 @@ package tui
 import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -74,88 +73,81 @@ func FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 	rootNode := tview.NewTreeNode(startDir).SetReference(startDir).SetExpanded(true)
 	tree.SetRoot(rootNode).SetCurrentNode(rootNode)
 
-	var addChildren func(node *tview.TreeNode, fullPath string)
-	addChildren = func(node *tview.TreeNode, fullPath string) {
-		node.ClearChildren()
-
-		// 上層節點
-		//parent := filepath.Clean(filepath.Join(fullPath, ".."))
-		//upNode := tview.NewTreeNode("[..]").
-		//	SetColor(tcell.ColorYellow).
-		//	SetReference(parent).
-		//	SetSelectable(true)
-		//
-		//upNode.SetSelectedFunc(func() {
-		//	addChildren(node, parent)
-		//	node.SetReference(parent)
-		//	node.SetExpanded(true)
-		//	tree.SetCurrentNode(node)
-		//})
-		//node.AddChild(upNode)
-
-		// 讀取資料夾內容
-		entries, err := ioutil.ReadDir(fullPath)
-		if err != nil {
-			return
-		}
-
-		// 排序：按名稱排序
-		sort.Slice(entries, func(i, j int) bool {
-			return entries[i].Name() < entries[j].Name()
-		})
-
-		for _, entry := range entries {
-			name := entry.Name()
-			//childPath := filepath.Join(fullPath, name)
-			childPath, _ := filepath.Abs(filepath.Join(fullPath, name))
-
-			if !opt.AllowShowFile && !entry.IsDir() {
-				continue
-			}
-
-			// 過濾副檔名
-			if len(opt.ExtensionFilter) > 0 && !entry.IsDir() {
-				matched := false
-				for _, ext := range opt.ExtensionFilter {
-					if strings.HasSuffix(strings.ToLower(name), strings.ToLower(ext)) {
-						matched = true
-						break
-					}
-				}
-				if !matched {
-					continue
-				}
-			}
-
-			childNode := tview.NewTreeNode(name).SetReference(childPath)
-			p := childPath
-
-			if entry.IsDir() {
-				childNode.SetColor(tcell.ColorGreen)
-				if opt.AllowFolderSelect {
-					childNode.SetSelectedFunc(func() {
-						opt.OnSelect(p)
-					})
-				} else {
-					childNode.SetSelectedFunc(func() {
-						addChildren(childNode, p)
-						childNode.SetExpanded(true)
-						tree.SetCurrentNode(childNode)
-						opt.OnSelect(p)
-					})
-				}
-			} else {
-				childNode.SetColor(tcell.ColorWhite)
-				childNode.SetSelectedFunc(func() {
-					opt.OnSelect(p)
-				})
-			}
-
-			node.AddChild(childNode)
-		}
-	}
-
-	addChildren(rootNode, startDir)
+	refreshFileTree(tree, rootNode, startDir, opt)
 
 	return tree
+}
+
+func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string, opt FilePickerOption) {
+	rootNode.ClearChildren()
+
+	parent := filepath.Dir(dir)
+	upNode := tview.NewTreeNode("[..]").
+		SetColor(tcell.ColorYellow).
+		SetReference(parent).
+		SetSelectable(true).
+		SetSelectedFunc(func() {
+			refreshFileTree(tree, rootNode, parent, opt)
+			rootNode.SetReference(parent)
+			rootNode.SetExpanded(true)
+			tree.SetTitle(" File Picker - " + parent)
+		})
+	rootNode.AddChild(upNode)
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+
+	for _, entry := range entries {
+		name := entry.Name()
+		childPath, _ := filepath.Abs(filepath.Join(dir, name))
+
+		if !entry.IsDir() && !opt.AllowShowFile {
+			continue
+		}
+
+		if !entry.IsDir() && len(opt.ExtensionFilter) > 0 {
+			allowed := false
+			for _, ext := range opt.ExtensionFilter {
+				if strings.HasSuffix(strings.ToLower(name), strings.ToLower(ext)) {
+					allowed = true
+					break
+				}
+			}
+			if !allowed {
+				continue
+			}
+		}
+
+		childNode := tview.NewTreeNode(name).
+			SetReference(childPath).
+			SetSelectable(true)
+
+		if entry.IsDir() {
+			childNode.SetColor(tcell.ColorGreen)
+			childNode.SetSelectedFunc(func(path string) func() {
+				return func() {
+					refreshFileTree(tree, rootNode, path, opt)
+					rootNode.SetReference(path)
+					rootNode.SetExpanded(true)
+					tree.SetCurrentNode(childNode)
+					tree.SetTitle(" File Picker - " + path)
+				}
+			}(childPath))
+		} else {
+			childNode.SetColor(tcell.ColorWhite)
+			childNode.SetSelectedFunc(func(path string) func() {
+				return func() {
+					opt.OnSelect(path)
+				}
+			}(childPath))
+		}
+
+		rootNode.AddChild(childNode)
+	}
 }
