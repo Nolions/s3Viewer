@@ -14,7 +14,7 @@ var selectedPath string
 // FilePickerModal 把 FilePicker 包成置中 Modal
 func FilePickerModal(picker *tview.TreeView, width, height int, closeFunc func(), confirmFunc func()) tview.Primitive {
 	confirmBtn := tview.NewButton("Confirm").SetSelectedFunc(func() {
-		if confirmFunc != nil {
+		if selectedPath != "" && confirmFunc != nil {
 			confirmFunc()
 		}
 	})
@@ -73,13 +73,24 @@ func FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 	rootNode := tview.NewTreeNode(startDir).SetReference(startDir).SetExpanded(true)
 	tree.SetRoot(rootNode).SetCurrentNode(rootNode)
 
+	selectedPath = startDir
+
+	tree.SetSelectedFunc(func(node *tview.TreeNode) {
+		ref := node.GetReference()
+		if ref != nil {
+			selectedPath = ref.(string)
+		}
+	})
+
 	refreshFileTree(tree, rootNode, startDir, opt)
 
 	return tree
 }
 
 func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string, opt FilePickerOption) {
+	tree.SetTitle(" File Picker - " + dir)
 	rootNode.ClearChildren()
+	rootNode.SetReference(dir)
 
 	parent := filepath.Dir(dir)
 	upNode := tview.NewTreeNode("[..]").
@@ -88,9 +99,6 @@ func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string,
 		SetSelectable(true).
 		SetSelectedFunc(func() {
 			refreshFileTree(tree, rootNode, parent, opt)
-			rootNode.SetReference(parent)
-			rootNode.SetExpanded(true)
-			tree.SetTitle(" File Picker - " + parent)
 		})
 	rootNode.AddChild(upNode)
 
@@ -133,8 +141,6 @@ func refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string,
 			childNode.SetSelectedFunc(func(path string) func() {
 				return func() {
 					refreshFileTree(tree, rootNode, path, opt)
-					rootNode.SetReference(path)
-					rootNode.SetExpanded(true)
 					tree.SetCurrentNode(childNode)
 					tree.SetTitle(" File Picker - " + path)
 				}
