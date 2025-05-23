@@ -208,5 +208,8 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
+build/*
+!build/.gitkeep*
+
 # End of https://www.toptal.com/developers/gitignore/api/goland,visualstudiocode,macos,windows,linux
 
