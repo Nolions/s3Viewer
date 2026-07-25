@@ -5,6 +5,8 @@ import (
 	"github.com/rivo/tview"
 )
 
+var ResetCredentialsForm func()
+
 func (appCTX *S3App) CredentialsLayout() *tview.Flex {
 	credentialsForm := appCTX.CredentialsForm("manager", func(app *tview.Application) {
 		app.Stop()
@@ -203,6 +205,18 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 
 	buildAWSForm()
 	buildMinIOForm()
+
+	ResetCredentialsForm = func() {
+		appCTX.AwsConf.AccessKey = ""
+		appCTX.AwsConf.SecretKey = ""
+		appCTX.AwsConf.Bucket = ""
+		showAccessKey = false
+		showSecretKey = false
+		showUsername = false
+		showPassword = false
+		buildAWSForm()
+		buildMinIOForm()
+	}
 
 	pages.AddPage("aws", awsForm, true, true)
 	pages.AddPage("minio", minioForm, true, false)

@@ -279,7 +279,13 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 			console.SetText("no select file")
 		}
 	})
-	exitBtn := tview.NewButton("Logout").SetSelectedFunc(func() {
+	exitBtn := tview.NewButton("Exit").SetSelectedFunc(func() {
+		if ResetCredentialsForm != nil {
+			ResetCredentialsForm()
+		}
+		appCTX.S3Client = nil
+		appCTX.selectedPath = ""
+		selectedFile = aws.FileInfo{}
 		appCTX.Pages.SwitchToPage("credentials")
 	})
 
