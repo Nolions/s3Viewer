@@ -145,6 +145,56 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 			go appCTX.loadSubDirs(currentPrefix, currentPrefixNode, currentFileListView, consoleLayout)
 		}
 	})
+	infoBtn := tview.NewButton("Info").SetSelectedFunc(func() {
+		if selectedFile.Key != "" && selectedFile.Name != "" {
+			console.SetText(fmt.Sprintf("fetching info for: %s...", selectedFile.Key))
+			go func() {
+				targetFile := selectedFile
+				detail, err := appCTX.S3Client.GetDetail(targetFile.Key)
+				if err != nil {
+					appCTX.App.QueueUpdateDraw(func() {
+						console.SetText(fmt.Sprintf("[red]get info fail, error:%s[-]", err.Error()))
+					})
+					return
+				}
+
+				infoText := fmt.Sprintf(
+					"Key: %s\nSize: %d bytes\nContent-Type: %s\nLast Modified: %s\nEncryption: %s\nAccept-Ranges: %s",
+					targetFile.Key,
+					detail.ContentLength,
+					detail.ContentType,
+					detail.UpdateTime.Format("2006-01-02 15:04:05 MST"),
+					detail.Encryption,
+					detail.AcceptRanges,
+				)
+
+				// 若為圖片，下載位元內容並渲染半區塊縮圖預覽
+				if IsImageFile(detail.ContentType, targetFile.Key) {
+					imgData, err := appCTX.S3Client.GetObjectData(targetFile.Key)
+					if err == nil {
+						imgStr, imgErr := RenderImageToTview(imgData, 45, 12)
+						if imgErr == nil && imgStr != "" {
+							infoText += "\n\n[yellow]--- Image Preview ---[-]\n" + imgStr
+						}
+					}
+				}
+
+				appCTX.App.QueueUpdateDraw(func() {
+					if infoModal != nil {
+						infoModal.SetText(infoText)
+					}
+					appCTX.Pages.ShowPage("infoModal")
+					appCTX.Pages.SendToFront("infoModal")
+					if infoModal != nil {
+						appCTX.App.SetFocus(infoModal)
+					}
+					console.SetText(fmt.Sprintf("fetched info for: %s", targetFile.Key))
+				})
+			}()
+		} else {
+			console.SetText("no select file")
+		}
+	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
 			appCTX.Pages.ShowPage("dirPicker")
@@ -168,7 +218,7 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 			console.SetText("no select file")
 		}
 	})
-	exitBtn := tview.NewButton("Exit").SetSelectedFunc(func() {
+	exitBtn := tview.NewButton("Logout").SetSelectedFunc(func() {
 		appCTX.Pages.SwitchToPage("credentials")
 	})
 
@@ -180,6 +230,8 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(uploadBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 0, 1, false).
+		AddItem(infoBtn, 10, 0, false).
+		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(downloadBtn, 12, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(deleteBtn, 10, 0, false).
@@ -191,7 +243,7 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 
 	// Focus 切換處理
 	focusables := []tview.Primitive{
-		fileKeyInput, selectBtn, uploadBtn, downloadBtn, deleteBtn, exitBtn,
+		fileKeyInput, selectBtn, uploadBtn, infoBtn, downloadBtn, deleteBtn, exitBtn,
 	}
 	currentFocus := 0
 

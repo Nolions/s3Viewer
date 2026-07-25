@@ -257,3 +257,19 @@ func (c *S3Client) DeleteObject(key string) error {
 	return nil
 }
 
+// GetObjectData
+// 讀取物件完整 byte 內容
+func (c *S3Client) GetObjectData(key string) ([]byte, error) {
+	resp, err := c.client.GetObject(c.ctx, &s3.GetObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	return io.ReadAll(resp.Body)
+}
+
+

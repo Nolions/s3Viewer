@@ -27,6 +27,7 @@ var (
 	consoleLayout      *tview.TextView
 	fileKeyInput       *tview.InputField
 	deleteConfirmModal *tview.Modal
+	infoModal          *tview.Modal
 )
 
 func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
@@ -138,10 +139,18 @@ func (appCTX *S3App) BuildUI() {
 		},
 	)
 
+	infoModal = tview.NewModal().
+		AddButtons([]string{"OK"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			appCTX.Pages.HidePage("infoModal")
+		})
+	infoModal.SetTitle("Object Info")
+
 	appCTX.Pages.AddPage("credentials", credentialsPage, true, true)
 	appCTX.Pages.AddPage("filepicker", filePickerModal, true, false)
 	appCTX.Pages.AddPage("dirPicker", dirPickerModal, true, false)
 	appCTX.Pages.AddPage("deleteConfirm", deleteConfirmModal, true, false)
+	appCTX.Pages.AddPage("infoModal", infoModal, true, false)
 
 	if err := appCTX.App.SetRoot(appCTX.Pages, true).Run(); err != nil {
 		panic(err)

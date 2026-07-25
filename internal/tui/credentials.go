@@ -115,7 +115,7 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 				showSecretKey = false
 				buildAWSForm()
 			}).
-			AddButton("Exit", func() {
+			AddButton("Close", func() {
 				exitFun(appCTX.App)
 			})
 
@@ -194,7 +194,7 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 				showPassword = false
 				buildMinIOForm()
 			}).
-			AddButton("Exit", func() {
+			AddButton("Close", func() {
 				exitFun(appCTX.App)
 			})
 
