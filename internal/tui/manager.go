@@ -2,10 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"path"
+	"path/filepath"
+
 	"github.com/Nolions/s3Viewer/internal/aws"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-	"path"
 )
 
 var selectedFile aws.FileInfo
@@ -43,11 +45,21 @@ func (appCTX *S3App) ManagerLayout() *tview.Flex {
 }
 
 func (appCTX *S3App) TopLayout() *tview.Flex {
-	regionLayout := appCTX.LabelLayout("Region", appCTX.AwsConf.Region)
+	typeLayout := appCTX.LabelLayout("Type", appCTX.AwsConf.Type)
+
+	locationVal := appCTX.AwsConf.Region
+	locationLabel := "Region"
+	if appCTX.AwsConf.Type == "MinIO" {
+		locationLabel = "Host"
+		locationVal = appCTX.AwsConf.Endpoint
+	}
+
+	locationLayout := appCTX.LabelLayout(locationLabel, locationVal)
 	bucketLayout := appCTX.LabelLayout("Bucket", appCTX.AwsConf.Bucket)
 
 	flex := tview.NewFlex().
-		AddItem(regionLayout, 0, 1, true).
+		AddItem(typeLayout, 0, 1, false).
+		AddItem(locationLayout, 0, 2, false).
 		AddItem(bucketLayout, 0, 2, false)
 
 	return flex
@@ -100,22 +112,30 @@ func (appCTX *S3App) ConsoleLayout() *tview.TextView {
 }
 
 func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
-	inputField := tview.NewInputField().SetLabel("S3 file Key: ").SetFieldWidth(55)
+	fileKeyInput = tview.NewInputField().SetLabel("File Key: ").SetFieldWidth(55)
 	selectBtn := tview.NewButton("Select").SetSelectedFunc(func() {
 		appCTX.Pages.ShowPage("filepicker")
 		appCTX.Pages.SendToFront("filepicker")
 		appCTX.App.SetFocus(filePicker) // 可選
 	})
 	uploadBtn := tview.NewButton("Upload").SetSelectedFunc(func() {
-		s3Key := inputField.GetText()
-		consoleLayout.SetText(fmt.Sprintf("file: %s upload to s3 key: %s", appCTX.selectedPath, s3Key))
+		if appCTX.selectedPath == "" {
+			consoleLayout.SetText("no local file selected")
+			return
+		}
+		s3Key := fileKeyInput.GetText()
+		if s3Key == "" {
+			s3Key = filepath.Base(appCTX.selectedPath)
+			fileKeyInput.SetText(s3Key)
+		}
+		consoleLayout.SetText(fmt.Sprintf("file: %s upload to key: %s", appCTX.selectedPath, s3Key))
 		err := appCTX.S3Client.UploadFile(appCTX.selectedPath, s3Key)
 		if err != nil {
-			consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s fail, error:%s", appCTX.selectedPath, inputField.GetText(), err.Error()))
+			consoleLayout.SetText(fmt.Sprintf("upload file: %s to key: %s fail, error:%s", appCTX.selectedPath, fileKeyInput.GetText(), err.Error()))
 			return
 		}
 
-		consoleLayout.SetText(fmt.Sprintf("upload file: %s to s3 key: %s usccess", appCTX.selectedPath, inputField.GetText()))
+		consoleLayout.SetText(fmt.Sprintf("upload file: %s to key: %s success", appCTX.selectedPath, fileKeyInput.GetText()))
 	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
@@ -134,7 +154,7 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 
 	layout := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(tview.NewBox(), 2, 0, false).
-		AddItem(inputField, 70, 0, false).
+		AddItem(fileKeyInput, 70, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(selectBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
@@ -151,11 +171,15 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 
 	// Focus 切換處理
 	focusables := []tview.Primitive{
-		inputField, selectBtn, uploadBtn, downloadBtn, exitBtn,
+		fileKeyInput, selectBtn, uploadBtn, downloadBtn, exitBtn,
 	}
 	currentFocus := 0
 
 	layout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if appCTX.App.GetFocus() == fileKeyInput {
+			return event
+		}
+
 		switch event.Key() {
 		case tcell.KeyLeft:
 			currentFocus = (currentFocus - 1 + len(focusables)) % len(focusables)

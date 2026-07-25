@@ -32,8 +32,13 @@ var Regions = []string{
 }
 
 func newConfig(conf awsConf.AWSConfig) (*aws.Config, error) {
+	region := conf.Region
+	if region == "" {
+		region = "us-east-1"
+	}
+
 	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(conf.Region),
+		config.WithRegion(region),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(conf.AccessKey, conf.SecretKey, ""),
 		),

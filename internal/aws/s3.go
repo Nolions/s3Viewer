@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -27,8 +28,20 @@ func NewS3Client(ctx context.Context, conf awsConf.AWSConfig) (*S3Client, error)
 		return nil, err
 	}
 
+	endpoint := strings.TrimSpace(conf.Endpoint)
+	if endpoint != "" && !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		endpoint = "http://" + endpoint
+	}
+
+	client := s3.NewFromConfig(*cfg, func(o *s3.Options) {
+		if endpoint != "" {
+			o.BaseEndpoint = aws.String(endpoint)
+		}
+		o.UsePathStyle = conf.UsePathStyle
+	})
+
 	return &S3Client{
-		client: s3.NewFromConfig(*cfg),
+		client: client,
 		ctx:    ctx,
 		bucket: conf.Bucket,
 	}, nil
@@ -166,8 +179,22 @@ func (c *S3Client) DownloadFile(key, destPath string) error {
 // UploadFile
 // 上傳檔案到s3
 func (c *S3Client) UploadFile(filePath, key string) error {
+	filePath = strings.TrimSpace(filePath)
+	if filePath == "" {
+		return fmt.Errorf("local file path cannot be empty")
+	}
+
+	key = strings.TrimSpace(key)
+	if key == "" {
+		key = filepath.Base(filePath)
+	}
+
 	if strings.HasPrefix(key, "/") {
 		key = strings.TrimPrefix(key, "/")
+	}
+
+	if key == "" {
+		return fmt.Errorf("file key cannot be empty")
 	}
 
 	// 檢查檔案是否存在

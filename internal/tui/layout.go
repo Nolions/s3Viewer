@@ -3,6 +3,8 @@ package tui
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+
 	"github.com/Nolions/s3Viewer/config"
 	"github.com/Nolions/s3Viewer/internal/aws"
 	"github.com/rivo/tview"
@@ -18,12 +20,12 @@ type S3App struct {
 }
 
 var (
-	dirPicker  *tview.TreeView
-	filePicker *tview.TreeView
-	//filePickerModal tview.Primitive
+	dirPicker       *tview.TreeView
+	filePicker      *tview.TreeView
 	credentialsPage *tview.Flex
 	managerPage     *tview.Flex
 	consoleLayout   *tview.TextView
+	fileKeyInput    *tview.InputField
 )
 
 func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
@@ -92,7 +94,13 @@ func (appCTX *S3App) BuildUI() {
 			appCTX.Pages.HidePage("filepicker")
 		},
 		func() {
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", appCTX.selectedPath))
+			if appCTX.selectedPath != "" {
+				fileName := filepath.Base(appCTX.selectedPath)
+				if fileKeyInput != nil {
+					fileKeyInput.SetText(fileName)
+				}
+				consoleLayout.SetText(fmt.Sprintf("已選擇檔案：%s", appCTX.selectedPath))
+			}
 			appCTX.Pages.HidePage("filepicker")
 		},
 	)
