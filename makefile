@@ -6,6 +6,10 @@ OUTPUT_DIR := build
 
 default: build
 
+run:
+	@echo "run..."
+	go run $(CMD_PATH)/main.go
+
 compile:
 	@echo "Building by OS..."
 	go build -o $(OUTPUT_DIR)/$(APP_NAME).exe $(CMD_PATH)
@@ -52,3 +56,12 @@ darwin-arm64:
 
 clean:
 	rm -rf $(OUTPUT_DIR)
+
+runMinIO:
+	docker run -d --name minio -p 9000:9000 \
+	-p 9001:9001 \
+	-e MINIO_ROOT_USER=admin \
+	-e MINIO_ROOT_PASSWORD=admin12345 \
+	-v ~/volume/minio/data:/data \
+	-v ~/volume/minio/config:/root/.minio \
+	quay.io/minio/minio server /data --console-address ":9001"
