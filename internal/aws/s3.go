@@ -146,7 +146,7 @@ func collectObjects(files *[]FileInfo, contents []types.Object, prefix string) {
 // 下載單一檔案到本機目錄中
 func (c *S3Client) DownloadFile(key, destPath string) error {
 	// 檢查預計儲存目錄是否存在
-	dir := destPath[:strings.LastIndex(destPath, string(os.PathSeparator))]
+	dir := filepath.Dir(destPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}

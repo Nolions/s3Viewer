@@ -65,17 +65,32 @@ func (appCTX *S3App) BuildUI() {
 			appCTX.selectedPath = ""
 		},
 		func() {
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", appCTX.selectedPath))
-			downloadPath := appCTX.selectedPath + "\\" + selectedFile.Name
-			err := appCTX.S3Client.DownloadFile(selectedFile.Key, downloadPath)
-			consoleLayout.SetText(fmt.Sprintf("你按下 Confirm，選擇了：%s", appCTX.selectedPath))
-			if err != nil {
-				consoleLayout.SetText(fmt.Sprintf("download file: %s to %s fail, error:%s", selectedFile.Name, downloadPath, err.Error()))
-			} else {
-				consoleLayout.SetText(fmt.Sprintf("download file: %s to %s, success, size:%d", selectedFile.Name, downloadPath, selectedFile.Size))
+			if appCTX.selectedPath == "" {
+				appCTX.Pages.HidePage("dirPicker")
+				return
 			}
+			targetDir := appCTX.selectedPath
+			targetFile := selectedFile
 			appCTX.Pages.HidePage("dirPicker")
 			appCTX.selectedPath = ""
+
+			fileName := filepath.Base(targetFile.Name)
+			if fileName == "" || fileName == "." {
+				fileName = filepath.Base(targetFile.Key)
+			}
+			downloadPath := filepath.Join(targetDir, fileName)
+
+			consoleLayout.SetText(fmt.Sprintf("downloading file: %s to %s...", targetFile.Name, downloadPath))
+			go func() {
+				err := appCTX.S3Client.DownloadFile(targetFile.Key, downloadPath)
+				appCTX.App.QueueUpdateDraw(func() {
+					if err != nil {
+						consoleLayout.SetText(fmt.Sprintf("[red]download file: %s to %s fail, error:%s[-]", targetFile.Name, downloadPath, err.Error()))
+					} else {
+						consoleLayout.SetText(fmt.Sprintf("[green]download file: %s to %s success, size:%d bytes[-]", targetFile.Name, downloadPath, targetFile.Size))
+					}
+				})
+			}()
 		},
 	)
 
