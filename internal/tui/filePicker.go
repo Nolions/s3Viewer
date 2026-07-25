@@ -18,9 +18,18 @@ func (appCTX *S3App) FilePickerModal(picker *tview.TreeView, width, height int, 
 	})
 	confirmBtn.SetBorder(true)
 
+	cancelBtn := tview.NewButton("Cancel").SetSelectedFunc(func() {
+		if closeFunc != nil {
+			closeFunc()
+		}
+	})
+	cancelBtn.SetBorder(true)
+
 	btnRow := tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(confirmBtn, 12, 0, true).
+		AddItem(tview.NewBox(), 2, 0, false).
+		AddItem(cancelBtn, 12, 0, false).
 		AddItem(nil, 0, 1, false)
 
 	flex := tview.NewFlex().SetDirection(tview.FlexRow).
@@ -35,9 +44,11 @@ func (appCTX *S3App) FilePickerModal(picker *tview.TreeView, width, height int, 
 		AddItem(nil, 0, 1, false)
 
 	// 支援 Esc 關閉
-	picker.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+	flex.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEsc {
-			closeFunc()
+			if closeFunc != nil {
+				closeFunc()
+			}
 			return nil
 		}
 		return event
