@@ -128,8 +128,8 @@ func wrapCentered(content tview.Primitive) *tview.Flex {
 		AddItem(
 			tview.NewFlex().
 				AddItem(nil, 0, 1, false).
-				AddItem(content, 50, 1, true).
+				AddItem(content, 60, 1, true).
 				AddItem(nil, 0, 1, false),
-			0, 2, true).
+			21, 1, true).
 		AddItem(nil, 0, 1, false)
 }

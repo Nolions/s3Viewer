@@ -15,6 +15,9 @@ func (appCTX *S3App) CredentialsLayout() *tview.Flex {
 func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Application)) *tview.Form {
 	form := tview.NewForm()
 
+	var showAccessKey, showSecretKey bool
+	var showUsername, showPassword bool
+
 	var buildForm func(selectedType string)
 	buildForm = func(selectedType string) {
 		form.Clear(true)
@@ -32,6 +35,10 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 				appCTX.AwsConf.SecretKey = ""
 				appCTX.AwsConf.Bucket = ""
 				appCTX.AwsConf.Acl = false
+				showAccessKey = false
+				showSecretKey = false
+				showUsername = false
+				showPassword = false
 				if option == "MinIO" {
 					appCTX.AwsConf.Endpoint = "http://localhost:9000"
 				} else {
@@ -52,16 +59,39 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 
 			form.AddInputField("Host", appCTX.AwsConf.Endpoint, 35, nil, func(text string) {
 				appCTX.AwsConf.Endpoint = text
-			}).
-				AddPasswordField("Username", appCTX.AwsConf.AccessKey, 35, '*', func(text string) {
+			})
+
+			if showUsername {
+				form.AddInputField("Username", appCTX.AwsConf.AccessKey, 35, nil, func(text string) {
 					appCTX.AwsConf.AccessKey = text
-				}).
-				AddPasswordField("Password", appCTX.AwsConf.SecretKey, 35, '*', func(text string) {
-					appCTX.AwsConf.SecretKey = text
-				}).
-				AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) {
-					appCTX.AwsConf.Bucket = text
 				})
+			} else {
+				form.AddPasswordField("Username", appCTX.AwsConf.AccessKey, 35, '*', func(text string) {
+					appCTX.AwsConf.AccessKey = text
+				})
+			}
+			form.AddCheckbox("Show Username", showUsername, func(checked bool) {
+				showUsername = checked
+				buildForm(selectedType)
+			})
+
+			if showPassword {
+				form.AddInputField("Password", appCTX.AwsConf.SecretKey, 35, nil, func(text string) {
+					appCTX.AwsConf.SecretKey = text
+				})
+			} else {
+				form.AddPasswordField("Password", appCTX.AwsConf.SecretKey, 35, '*', func(text string) {
+					appCTX.AwsConf.SecretKey = text
+				})
+			}
+			form.AddCheckbox("Show Password", showPassword, func(checked bool) {
+				showPassword = checked
+				buildForm(selectedType)
+			})
+
+			form.AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) {
+				appCTX.AwsConf.Bucket = text
+			})
 		} else {
 			appCTX.AwsConf.Endpoint = ""
 			appCTX.AwsConf.UsePathStyle = false
@@ -76,16 +106,39 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 
 			form.AddDropDown("Region", aws.Regions, regionIdx, func(text string, idx int) {
 				appCTX.AwsConf.Region = aws.Regions[idx]
-			}).
-				AddPasswordField("AccessKey", appCTX.AwsConf.AccessKey, 35, '*', func(text string) {
+			})
+
+			if showAccessKey {
+				form.AddInputField("AccessKey", appCTX.AwsConf.AccessKey, 35, nil, func(text string) {
 					appCTX.AwsConf.AccessKey = text
-				}).
-				AddPasswordField("SecretKey", appCTX.AwsConf.SecretKey, 35, '*', func(text string) {
+				})
+			} else {
+				form.AddPasswordField("AccessKey", appCTX.AwsConf.AccessKey, 35, '*', func(text string) {
+					appCTX.AwsConf.AccessKey = text
+				})
+			}
+			form.AddCheckbox("Show AccessKey", showAccessKey, func(checked bool) {
+				showAccessKey = checked
+				buildForm(selectedType)
+			})
+
+			if showSecretKey {
+				form.AddInputField("SecretKey", appCTX.AwsConf.SecretKey, 35, nil, func(text string) {
 					appCTX.AwsConf.SecretKey = text
-				}).
-				AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) {
-					appCTX.AwsConf.Bucket = text
-				}).
+				})
+			} else {
+				form.AddPasswordField("SecretKey", appCTX.AwsConf.SecretKey, 35, '*', func(text string) {
+					appCTX.AwsConf.SecretKey = text
+				})
+			}
+			form.AddCheckbox("Show SecretKey", showSecretKey, func(checked bool) {
+				showSecretKey = checked
+				buildForm(selectedType)
+			})
+
+			form.AddInputField("Bucket", appCTX.AwsConf.Bucket, 35, nil, func(text string) {
+				appCTX.AwsConf.Bucket = text
+			}).
 				AddCheckbox("Acl", appCTX.AwsConf.Acl, func(checked bool) {
 					appCTX.AwsConf.Acl = checked
 				})
@@ -112,6 +165,10 @@ func (appCTX *S3App) CredentialsForm(switchTo string, exitFun func(app *tview.Ap
 				appCTX.AwsConf.AccessKey = ""
 				appCTX.AwsConf.SecretKey = ""
 				appCTX.AwsConf.Bucket = ""
+				showAccessKey = false
+				showSecretKey = false
+				showUsername = false
+				showPassword = false
 				if selectedType == "MinIO" {
 					appCTX.AwsConf.Endpoint = "http://localhost:9000"
 				}
