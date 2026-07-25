@@ -20,12 +20,13 @@ type S3App struct {
 }
 
 var (
-	dirPicker       *tview.TreeView
-	filePicker      *tview.TreeView
-	credentialsPage *tview.Flex
-	managerPage     *tview.Flex
-	consoleLayout   *tview.TextView
-	fileKeyInput    *tview.InputField
+	dirPicker          *tview.TreeView
+	filePicker         *tview.TreeView
+	credentialsPage    *tview.Flex
+	managerPage        *tview.Flex
+	consoleLayout      *tview.TextView
+	fileKeyInput       *tview.InputField
+	deleteConfirmModal *tview.Modal
 )
 
 func NewS3App(ctx context.Context, conf *config.AWSConfig) *S3App {
@@ -105,9 +106,42 @@ func (appCTX *S3App) BuildUI() {
 		},
 	)
 
+	deleteConfirmModal = ConfirmModal(
+		"刪除物件",
+		"確定要刪除該物件嗎?",
+		"Delete",
+		"Cancel",
+		func() {
+			targetFile := selectedFile
+			appCTX.Pages.HidePage("deleteConfirm")
+			if targetFile.Key == "" {
+				return
+			}
+			consoleLayout.SetText(fmt.Sprintf("deleting object: %s...", targetFile.Key))
+			go func() {
+				err := appCTX.S3Client.DeleteObject(targetFile.Key)
+				appCTX.App.QueueUpdateDraw(func() {
+					if err != nil {
+						consoleLayout.SetText(fmt.Sprintf("[red]delete object %s fail, error:%s[-]", targetFile.Key, err.Error()))
+					} else {
+						consoleLayout.SetText(fmt.Sprintf("[green]delete object %s success[-]", targetFile.Key))
+						selectedFile = aws.FileInfo{}
+						if currentPrefixNode != nil && currentFileListView != nil {
+							go appCTX.loadSubDirs(currentPrefix, currentPrefixNode, currentFileListView, consoleLayout)
+						}
+					}
+				})
+			}()
+		},
+		func() {
+			appCTX.Pages.HidePage("deleteConfirm")
+		},
+	)
+
 	appCTX.Pages.AddPage("credentials", credentialsPage, true, true)
 	appCTX.Pages.AddPage("filepicker", filePickerModal, true, false)
 	appCTX.Pages.AddPage("dirPicker", dirPickerModal, true, false)
+	appCTX.Pages.AddPage("deleteConfirm", deleteConfirmModal, true, false)
 
 	if err := appCTX.App.SetRoot(appCTX.Pages, true).Run(); err != nil {
 		panic(err)

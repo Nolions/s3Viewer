@@ -10,7 +10,12 @@ import (
 	"github.com/rivo/tview"
 )
 
-var selectedFile aws.FileInfo
+var (
+	selectedFile        aws.FileInfo
+	currentPrefixNode   *tview.TreeNode
+	currentPrefix       string
+	currentFileListView *tview.List
+)
 
 func (appCTX *S3App) ManagerLayout() *tview.Flex {
 	consoleLayout = appCTX.ConsoleLayout()
@@ -136,6 +141,9 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 		}
 
 		consoleLayout.SetText(fmt.Sprintf("upload file: %s to key: %s success", appCTX.selectedPath, fileKeyInput.GetText()))
+		if currentPrefixNode != nil && currentFileListView != nil {
+			go appCTX.loadSubDirs(currentPrefix, currentPrefixNode, currentFileListView, consoleLayout)
+		}
 	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
@@ -146,8 +154,20 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 			console.SetText("no select file")
 		}
 	})
-	//deleteBtn := tview.NewButton("Delete").SetSelectedFunc(func() {
-	//})
+	deleteBtn := tview.NewButton("Delete").SetSelectedFunc(func() {
+		if selectedFile.Key != "" && selectedFile.Name != "" {
+			if deleteConfirmModal != nil {
+				deleteConfirmModal.SetText(fmt.Sprintf("確定要刪除該物件嗎:\n[yellow]%s[-]", selectedFile.Key))
+			}
+			appCTX.Pages.ShowPage("deleteConfirm")
+			appCTX.Pages.SendToFront("deleteConfirm")
+			if deleteConfirmModal != nil {
+				appCTX.App.SetFocus(deleteConfirmModal)
+			}
+		} else {
+			console.SetText("no select file")
+		}
+	})
 	exitBtn := tview.NewButton("Exit").SetSelectedFunc(func() {
 		appCTX.Pages.SwitchToPage("credentials")
 	})
@@ -162,7 +182,7 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 		AddItem(tview.NewBox(), 0, 1, false).
 		AddItem(downloadBtn, 12, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
-		//AddItem(deleteBtn, 10, 0, false).
+		AddItem(deleteBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(exitBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 2, 0, false)
@@ -171,7 +191,7 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 
 	// Focus 切換處理
 	focusables := []tview.Primitive{
-		fileKeyInput, selectBtn, uploadBtn, downloadBtn, exitBtn,
+		fileKeyInput, selectBtn, uploadBtn, downloadBtn, deleteBtn, exitBtn,
 	}
 	currentFocus := 0
 
@@ -226,6 +246,10 @@ func (appCTX *S3App) loadPrefixes(console *tview.TextView, prefixTreeView *tview
 	appCTX.App.QueueUpdateDraw(func() {
 		// Build tree root
 		root := tview.NewTreeNode(appCTX.AwsConf.Bucket).SetColor(tcell.ColorGreen).SetReference("")
+		currentPrefixNode = root
+		currentPrefix = ""
+		currentFileListView = fileListView
+
 		// Add top-level directories
 		for _, dir := range res.Dirs {
 			if dir == "" {
@@ -239,7 +263,15 @@ func (appCTX *S3App) loadPrefixes(console *tview.TextView, prefixTreeView *tview
 		// Populate file list
 		fileListView.Clear()
 		for _, f := range res.Files {
-			fileListView.AddItem(f.Name, "", 0, nil)
+			fCopy := f
+			fileListView.AddItem(fCopy.Name, "", 0, func() {
+				selectedFile = aws.FileInfo{
+					Name: fCopy.Name,
+					Key:  fCopy.Key,
+					Size: fCopy.Size,
+					Time: fCopy.Time,
+				}
+			})
 		}
 		console.SetText(fmt.Sprintf("Loaded %d dirs, %d files", len(res.Dirs), len(res.Files)))
 
@@ -250,6 +282,9 @@ func (appCTX *S3App) loadPrefixes(console *tview.TextView, prefixTreeView *tview
 				return
 			}
 			prefix := ref.(string)
+			currentPrefixNode = node
+			currentPrefix = prefix
+			currentFileListView = fileListView
 			go appCTX.loadSubDirs(prefix, node, fileListView, console)
 		})
 	})
@@ -281,12 +316,13 @@ func (appCTX *S3App) loadSubDirs(
 
 		fileListView.Clear()
 		for _, f := range res.Files {
-			fileListView.AddItem(f.Name, "", 0, func() {
+			fCopy := f
+			fileListView.AddItem(fCopy.Name, "", 0, func() {
 				selectedFile = aws.FileInfo{
-					Name: f.Name,
-					Key:  f.Key,
-					Size: f.Size,
-					Time: f.Time,
+					Name: fCopy.Name,
+					Key:  fCopy.Key,
+					Size: fCopy.Size,
+					Time: fCopy.Time,
 				}
 			})
 		}

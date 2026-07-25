@@ -25,3 +25,39 @@ func AlertModel(
 
 	return m
 }
+
+func ConfirmModal(
+	title string,
+	content string,
+	confirmLabel string,
+	cancelLabel string,
+	onConfirm func(),
+	onCancel func(),
+) *tview.Modal {
+	if confirmLabel == "" {
+		confirmLabel = "Confirm"
+	}
+	if cancelLabel == "" {
+		cancelLabel = "Cancel"
+	}
+
+	m := tview.NewModal().
+		SetText(content).
+		AddButtons([]string{confirmLabel, cancelLabel}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonIndex == 0 {
+				if onConfirm != nil {
+					onConfirm()
+				}
+			} else {
+				if onCancel != nil {
+					onCancel()
+				}
+			}
+		})
+
+	m.SetTitle(title)
+
+	return m
+}
+

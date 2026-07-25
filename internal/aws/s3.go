@@ -236,5 +236,24 @@ func (c *S3Client) GetDetail(key string) (FileDetail, error) {
 		ContentType:   aws.ToString(o.ContentType),
 		Encryption:    string(o.ServerSideEncryption),
 	}, nil
-
 }
+
+// DeleteObject
+// 刪除 s3 上的指定物件
+func (c *S3Client) DeleteObject(key string) error {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return fmt.Errorf("file key cannot be empty")
+	}
+
+	_, err := c.client.DeleteObject(c.ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
