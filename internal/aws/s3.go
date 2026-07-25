@@ -3,15 +3,16 @@ package aws
 import (
 	"context"
 	"fmt"
-	awsConf "github.com/Nolions/s3Viewer/config"
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	awsConf "github.com/Nolions/s3Viewer/config"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
 type S3Client struct {
@@ -142,9 +143,45 @@ func collectObjects(files *[]FileInfo, contents []types.Object, prefix string) {
 	}
 }
 
-// DownloadFile
-// 下載單一檔案到本機目錄中
-func (c *S3Client) DownloadFile(key, destPath string) error {
+type ProgressCallback func(currentBytes, totalBytes int64)
+
+type ProgressReader struct {
+	reader       io.Reader
+	totalBytes   int64
+	currentBytes int64
+	onProgress   ProgressCallback
+	lastUpdate   time.Time
+}
+
+func (pr *ProgressReader) Read(p []byte) (n int, err error) {
+	n, err = pr.reader.Read(p)
+	if n > 0 {
+		pr.currentBytes += int64(n)
+		if pr.onProgress != nil {
+			now := time.Now()
+			if pr.lastUpdate.IsZero() || now.Sub(pr.lastUpdate) >= 20*time.Millisecond || (pr.totalBytes > 0 && pr.currentBytes == pr.totalBytes) || err == io.EOF {
+				pr.lastUpdate = now
+				pr.onProgress(pr.currentBytes, pr.totalBytes)
+			}
+		}
+	}
+	return n, err
+}
+
+func (pr *ProgressReader) Seek(offset int64, whence int) (int64, error) {
+	if seeker, ok := pr.reader.(io.Seeker); ok {
+		n, err := seeker.Seek(offset, whence)
+		if err == nil {
+			pr.currentBytes = n
+		}
+		return n, err
+	}
+	return 0, fmt.Errorf("underlying reader does not implement io.Seeker")
+}
+
+// DownloadFileWithProgress
+// 下載單一檔案到本機目錄中（帶進度追蹤）
+func (c *S3Client) DownloadFileWithProgress(key, destPath string, onProgress ProgressCallback) error {
 	// 檢查預計儲存目錄是否存在
 	dir := filepath.Dir(destPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -168,17 +205,35 @@ func (c *S3Client) DownloadFile(key, destPath string) error {
 	}
 	defer resp.Body.Close()
 
-	_, err = io.Copy(f, resp.Body)
+	totalBytes := aws.ToInt64(resp.ContentLength)
+	pr := &ProgressReader{
+		reader:     resp.Body,
+		totalBytes: totalBytes,
+		onProgress: onProgress,
+	}
+
+	buf := make([]byte, 32*1024)
+	_, err = io.CopyBuffer(f, pr, buf)
 	if err != nil {
 		return err
+	}
+
+	if onProgress != nil && totalBytes > 0 {
+		onProgress(totalBytes, totalBytes)
 	}
 
 	return nil
 }
 
-// UploadFile
-// 上傳檔案到s3
-func (c *S3Client) UploadFile(filePath, key string) error {
+// DownloadFile
+// 下載單一檔案到本機目錄中
+func (c *S3Client) DownloadFile(key, destPath string) error {
+	return c.DownloadFileWithProgress(key, destPath, nil)
+}
+
+// UploadFileWithProgress
+// 上傳檔案到s3（帶進度追蹤）
+func (c *S3Client) UploadFileWithProgress(filePath, key string, onProgress ProgressCallback) error {
 	filePath = strings.TrimSpace(filePath)
 	if filePath == "" {
 		return fmt.Errorf("local file path cannot be empty")
@@ -204,16 +259,39 @@ func (c *S3Client) UploadFile(filePath, key string) error {
 	}
 	defer file.Close()
 
+	fileInfo, err := file.Stat()
+	totalBytes := int64(0)
+	if err == nil {
+		totalBytes = fileInfo.Size()
+	}
+
+	pr := &ProgressReader{
+		reader:     file,
+		totalBytes: totalBytes,
+		onProgress: onProgress,
+	}
+
 	_, err = c.client.PutObject(c.ctx, &s3.PutObjectInput{
-		Bucket: aws.String(c.bucket),
-		Key:    aws.String(key),
-		Body:   file,
+		Bucket:        aws.String(c.bucket),
+		Key:           aws.String(key),
+		Body:          pr,
+		ContentLength: aws.Int64(totalBytes),
 	})
 	if err != nil {
 		return err
 	}
 
+	if onProgress != nil && totalBytes > 0 {
+		onProgress(totalBytes, totalBytes)
+	}
+
 	return nil
+}
+
+// UploadFile
+// 上傳檔案到s3
+func (c *S3Client) UploadFile(filePath, key string) error {
+	return c.UploadFileWithProgress(filePath, key, nil)
 }
 
 // GetDetail
@@ -228,7 +306,7 @@ func (c *S3Client) GetDetail(key string) (FileDetail, error) {
 	if err != nil {
 		return FileDetail{}, err
 	}
-	
+
 	return FileDetail{
 		AcceptRanges:  aws.ToString(o.AcceptRanges),
 		UpdateTime:    aws.ToTime(o.LastModified),
@@ -297,5 +375,3 @@ func (c *S3Client) GetPresignedURL(key string, lifetime time.Duration) (string, 
 
 	return req.URL, nil
 }
-
-

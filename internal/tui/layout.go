@@ -49,12 +49,11 @@ func (appCTX *S3App) BuildUI() {
 
 	dirPicker = appCTX.FilePickerLayout(FilePickerOption{
 		StartDir:          ".",
-		AllowFolderSelect: false,
+		AllowFolderSelect: true,
 		AllowShowFile:     false,
 		ExtensionFilter:   []string{},
 		OnSelect: func(path string) {
 			appCTX.selectedPath = path
-			//appCTX.Pages.HidePage("filepicker")
 		},
 	})
 	dirPicker.SetBorder(true).SetTitle("Select a dir")
@@ -80,14 +79,20 @@ func (appCTX *S3App) BuildUI() {
 			}
 			downloadPath := filepath.Join(targetDir, fileName)
 
-			consoleLayout.SetText(fmt.Sprintf("downloading file: %s to %s...", targetFile.Name, downloadPath))
+			consoleLayout.SetText(fmt.Sprintf("preparing download for: %s...", targetFile.Name))
 			go func() {
-				err := appCTX.S3Client.DownloadFile(targetFile.Key, downloadPath)
+				err := appCTX.S3Client.DownloadFileWithProgress(targetFile.Key, downloadPath, func(current, total int64) {
+					appCTX.App.QueueUpdateDraw(func() {
+						progressMsg := FormatProgressBar(fmt.Sprintf("Downloading %s", targetFile.Name), current, total)
+						consoleLayout.SetText(progressMsg)
+					})
+				})
 				appCTX.App.QueueUpdateDraw(func() {
 					if err != nil {
 						consoleLayout.SetText(fmt.Sprintf("[red]download file: %s to %s fail, error:%s[-]", targetFile.Name, downloadPath, err.Error()))
 					} else {
-						consoleLayout.SetText(fmt.Sprintf("[green]download file: %s to %s success, size:%d bytes[-]", targetFile.Name, downloadPath, targetFile.Size))
+						completedBar := FormatProgressBar(fmt.Sprintf("Downloading %s", targetFile.Name), targetFile.Size, targetFile.Size)
+						consoleLayout.SetText(fmt.Sprintf("[green]✓ Download complete![-]\n%s\nSaved to: %s", completedBar, downloadPath))
 					}
 				})
 			}()

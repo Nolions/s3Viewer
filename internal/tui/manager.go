@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"time"
@@ -129,22 +130,37 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 			consoleLayout.SetText("no local file selected")
 			return
 		}
+		localPath := appCTX.selectedPath
 		s3Key := fileKeyInput.GetText()
 		if s3Key == "" {
-			s3Key = filepath.Base(appCTX.selectedPath)
+			s3Key = filepath.Base(localPath)
 			fileKeyInput.SetText(s3Key)
 		}
-		consoleLayout.SetText(fmt.Sprintf("file: %s upload to key: %s", appCTX.selectedPath, s3Key))
-		err := appCTX.S3Client.UploadFile(appCTX.selectedPath, s3Key)
-		if err != nil {
-			consoleLayout.SetText(fmt.Sprintf("upload file: %s to key: %s fail, error:%s", appCTX.selectedPath, fileKeyInput.GetText(), err.Error()))
-			return
-		}
-
-		consoleLayout.SetText(fmt.Sprintf("upload file: %s to key: %s success", appCTX.selectedPath, fileKeyInput.GetText()))
-		if currentPrefixNode != nil && currentFileListView != nil {
-			go appCTX.loadSubDirs(currentPrefix, currentPrefixNode, currentFileListView, consoleLayout)
-		}
+		targetKey := s3Key
+		consoleLayout.SetText(fmt.Sprintf("preparing upload for: %s...", localPath))
+		go func() {
+			err := appCTX.S3Client.UploadFileWithProgress(localPath, targetKey, func(current, total int64) {
+				appCTX.App.QueueUpdateDraw(func() {
+					progressMsg := FormatProgressBar(fmt.Sprintf("Uploading %s", filepath.Base(localPath)), current, total)
+					consoleLayout.SetText(progressMsg)
+				})
+			})
+			appCTX.App.QueueUpdateDraw(func() {
+				if err != nil {
+					consoleLayout.SetText(fmt.Sprintf("[red]upload file: %s to key: %s fail, error:%s[-]", localPath, targetKey, err.Error()))
+				} else {
+					fileSize := int64(0)
+					if fi, errStat := os.Stat(localPath); errStat == nil {
+						fileSize = fi.Size()
+					}
+					completedBar := FormatProgressBar(fmt.Sprintf("Uploading %s", filepath.Base(localPath)), fileSize, fileSize)
+					consoleLayout.SetText(fmt.Sprintf("[green]✓ Upload complete![-]\n%s\nS3 Key: %s", completedBar, targetKey))
+					if currentPrefixNode != nil && currentFileListView != nil {
+						go appCTX.loadSubDirs(currentPrefix, currentPrefixNode, currentFileListView, consoleLayout)
+					}
+				}
+			})
+		}()
 	})
 	infoBtn := tview.NewButton("Info").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
@@ -213,6 +229,8 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 	})
 	downloadBtn := tview.NewButton("Download").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
+			wd, _ := os.Getwd()
+			appCTX.selectedPath = wd
 			appCTX.Pages.ShowPage("dirPicker")
 			appCTX.Pages.SendToFront("dirPicker")
 			appCTX.App.SetFocus(dirPicker) // 可選
