@@ -65,9 +65,7 @@ func (appCTX *S3App) FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 	if startDir == "" {
 		startDir, _ = os.Getwd()
 	}
-
-	// 記錄目前瀏覽的位置
-	//var currentPath = startDir
+	startDir, _ = filepath.Abs(startDir)
 
 	rootNode := tview.NewTreeNode(startDir).SetReference(startDir).SetExpanded(true)
 	tree.SetRoot(rootNode).SetCurrentNode(rootNode)
@@ -78,6 +76,9 @@ func (appCTX *S3App) FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 		ref := node.GetReference()
 		if ref != nil {
 			appCTX.selectedPath = ref.(string)
+			if opt.OnSelect != nil {
+				opt.OnSelect(ref.(string))
+			}
 		}
 	})
 
@@ -87,19 +88,32 @@ func (appCTX *S3App) FilePickerLayout(opt FilePickerOption) *tview.TreeView {
 }
 
 func (appCTX *S3App) refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeNode, dir string, opt FilePickerOption) {
+	absDir, err := filepath.Abs(dir)
+	if err == nil {
+		dir = absDir
+	}
+
+	appCTX.selectedPath = dir
+	if opt.OnSelect != nil {
+		opt.OnSelect(dir)
+	}
+
 	tree.SetTitle(" File Picker - " + dir)
+	rootNode.SetText(dir).SetReference(dir)
 	rootNode.ClearChildren()
-	rootNode.SetReference(dir)
 
 	parent := filepath.Dir(dir)
-	upNode := tview.NewTreeNode("[..]").
-		SetColor(tcell.ColorYellow).
-		SetReference(parent).
-		SetSelectable(true).
-		SetSelectedFunc(func() {
-			appCTX.refreshFileTree(tree, rootNode, parent, opt)
-		})
-	rootNode.AddChild(upNode)
+	if parent != dir {
+		targetParent := parent
+		upNode := tview.NewTreeNode("[..]").
+			SetColor(tcell.ColorYellow).
+			SetReference(targetParent).
+			SetSelectable(true).
+			SetSelectedFunc(func() {
+				appCTX.refreshFileTree(tree, rootNode, targetParent, opt)
+			})
+		rootNode.AddChild(upNode)
+	}
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -107,12 +121,15 @@ func (appCTX *S3App) refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeN
 	}
 
 	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].IsDir() != entries[j].IsDir() {
+			return entries[i].IsDir()
+		}
 		return entries[i].Name() < entries[j].Name()
 	})
 
 	for _, entry := range entries {
 		name := entry.Name()
-		childPath, _ := filepath.Abs(filepath.Join(dir, name))
+		childPath := filepath.Join(dir, name)
 
 		if !entry.IsDir() && !opt.AllowShowFile {
 			continue
@@ -135,24 +152,24 @@ func (appCTX *S3App) refreshFileTree(tree *tview.TreeView, rootNode *tview.TreeN
 			SetReference(childPath).
 			SetSelectable(true)
 
+		targetPath := childPath
 		if entry.IsDir() {
 			childNode.SetColor(tcell.ColorGreen)
-			childNode.SetSelectedFunc(func(path string) func() {
-				return func() {
-					appCTX.refreshFileTree(tree, rootNode, path, opt)
-					tree.SetCurrentNode(childNode)
-					tree.SetTitle(" File Picker - " + path)
-				}
-			}(childPath))
+			childNode.SetSelectedFunc(func() {
+				appCTX.refreshFileTree(tree, rootNode, targetPath, opt)
+			})
 		} else {
 			childNode.SetColor(tcell.ColorWhite)
-			childNode.SetSelectedFunc(func(path string) func() {
-				return func() {
-					opt.OnSelect(path)
+			childNode.SetSelectedFunc(func() {
+				appCTX.selectedPath = targetPath
+				if opt.OnSelect != nil {
+					opt.OnSelect(targetPath)
 				}
-			}(childPath))
+			})
 		}
 
 		rootNode.AddChild(childNode)
 	}
+
+	tree.SetCurrentNode(rootNode)
 }
