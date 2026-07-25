@@ -28,6 +28,24 @@ func IsImageFile(contentType, key string) bool {
 	return false
 }
 
+// IsTextFile 判斷指定 Content-Type 或 Key 是否為純文字/程式碼檔案
+func IsTextFile(contentType, key string) bool {
+	ct := strings.ToLower(strings.TrimSpace(contentType))
+	if strings.HasPrefix(ct, "text/") || ct == "application/json" || ct == "application/xml" || ct == "application/javascript" || ct == "application/x-yaml" {
+		return true
+	}
+
+	ext := strings.ToLower(filepath.Ext(key))
+	switch ext {
+	case ".txt", ".json", ".yaml", ".yml", ".log", ".go", ".md", ".csv", ".sh", ".bash", ".zsh",
+		".xml", ".html", ".css", ".js", ".ts", ".py", ".rs", ".c", ".cpp", ".h", ".env", ".mod", ".sum", ".ini", ".conf", ".sql":
+		return true
+	}
+
+	return false
+}
+
+
 // RenderImageToTview 將圖片 Data 解碼並轉換為適合 tview (TextView/Modal) 的 half-block ANSI 色彩字串
 func RenderImageToTview(imgData []byte, maxCols, maxRows int) (string, error) {
 	if len(imgData) == 0 {

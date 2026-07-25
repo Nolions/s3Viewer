@@ -177,6 +177,21 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 							infoText += "\n\n[yellow]--- Image Preview ---[-]\n" + imgStr
 						}
 					}
+				} else if IsTextFile(detail.ContentType, targetFile.Key) {
+					fileData, err := appCTX.S3Client.GetObjectData(targetFile.Key)
+					if err == nil && len(fileData) > 0 {
+						const maxPreviewBytes = 20 * 1024 // 20KB max
+						isTruncated := false
+						if len(fileData) > maxPreviewBytes {
+							fileData = fileData[:maxPreviewBytes]
+							isTruncated = true
+						}
+						previewStr := tview.Escape(string(fileData))
+						if isTruncated {
+							previewStr += "\n\n[gray]... (content truncated, > 20KB) ...[-]"
+						}
+						infoText += "\n\n[yellow]--- Text Preview ---[-]\n" + previewStr
+					}
 				}
 
 				appCTX.App.QueueUpdateDraw(func() {
