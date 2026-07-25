@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/Nolions/s3Viewer/internal/aws"
 	"github.com/gdamore/tcell/v2"
@@ -219,6 +220,33 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 			console.SetText("no select file")
 		}
 	})
+	shareBtn := tview.NewButton("Share").SetSelectedFunc(func() {
+		if selectedFile.Key != "" && selectedFile.Name != "" {
+			console.SetText(fmt.Sprintf("generating presigned URL for: %s...", selectedFile.Key))
+			go func() {
+				targetFile := selectedFile
+				presignedURL, err := appCTX.S3Client.GetPresignedURL(targetFile.Key, 15*time.Minute)
+				if err != nil {
+					appCTX.App.QueueUpdateDraw(func() {
+						console.SetText(fmt.Sprintf("[red]generate presigned URL fail, error:%s[-]", err.Error()))
+					})
+					return
+				}
+
+				// 自動複製 Presigned URL 到作業系統剪貼簿 (macOS: pbcopy)
+				clipErr := CopyToClipboard(presignedURL)
+				appCTX.App.QueueUpdateDraw(func() {
+					if clipErr != nil {
+						console.SetText(fmt.Sprintf("[red]自動複製至剪貼簿失敗: %s[-]\nURL: %s", clipErr.Error(), presignedURL))
+					} else {
+						console.SetText(fmt.Sprintf("[green]✓ %s 連結已自動複製！ 有效期間: 15 分鐘[-]\nURL: %s", targetFile.Key, presignedURL))
+					}
+				})
+			}()
+		} else {
+			console.SetText("no select file")
+		}
+	})
 	deleteBtn := tview.NewButton("Delete").SetSelectedFunc(func() {
 		if selectedFile.Key != "" && selectedFile.Name != "" {
 			if deleteConfirmModal != nil {
@@ -249,6 +277,8 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(downloadBtn, 12, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
+		AddItem(shareBtn, 10, 0, false).
+		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(deleteBtn, 10, 0, false).
 		AddItem(tview.NewBox(), 1, 0, false).
 		AddItem(exitBtn, 10, 0, false).
@@ -258,7 +288,7 @@ func (appCTX *S3App) ButtonsLayout(console *tview.TextView) *tview.Flex {
 
 	// Focus 切換處理
 	focusables := []tview.Primitive{
-		fileKeyInput, selectBtn, uploadBtn, infoBtn, downloadBtn, deleteBtn, exitBtn,
+		fileKeyInput, selectBtn, uploadBtn, infoBtn, downloadBtn, shareBtn, deleteBtn, exitBtn,
 	}
 	currentFocus := 0
 

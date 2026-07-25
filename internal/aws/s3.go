@@ -272,4 +272,30 @@ func (c *S3Client) GetObjectData(key string) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
+// GetPresignedURL
+// 產生指定物件帶時效的 Presigned GET 下載連結
+func (c *S3Client) GetPresignedURL(key string, lifetime time.Duration) (string, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", fmt.Errorf("file key cannot be empty")
+	}
+
+	if lifetime <= 0 {
+		lifetime = 15 * time.Minute
+	}
+
+	presignClient := s3.NewPresignClient(c.client)
+	req, err := presignClient.PresignGetObject(c.ctx, &s3.GetObjectInput{
+		Bucket: aws.String(c.bucket),
+		Key:    aws.String(key),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = lifetime
+	})
+	if err != nil {
+		return "", err
+	}
+
+	return req.URL, nil
+}
+
 
